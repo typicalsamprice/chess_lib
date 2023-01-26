@@ -1,17 +1,30 @@
 use std::ops::Add;
 
 use crate::square::Square;
+use crate::color::Color;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum File {
-    A, B, C, D,
-    E, F, G, H
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum Rank {
-    One, Two, Three, Four,
-    Five, Six, Seven, Eight
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
 }
 
 impl File {
@@ -23,6 +36,10 @@ impl File {
 impl Rank {
     pub const fn as_mask(self) -> u64 {
         0xFF << (8 * self as u8)
+    }
+
+    pub fn relative(self, color: Color) -> Self {
+        Self::from(self as u8 + (color as u8 * (7 - 2 * self as u8)))
     }
 }
 
