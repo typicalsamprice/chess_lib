@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops;
 
 use crate::square::Square;
@@ -11,7 +12,7 @@ pub struct Bitboard(u64);
 
 impl Bitboard {
     pub const ZERO: Self = Self(0);
-    pub const MAX: Self = Self(0);
+    pub const MAX: Self = Self(!0);
 
     pub const fn new(value: u64) -> Self {
         Self(value)
@@ -184,5 +185,25 @@ where
 {
     fn bitxor_assign(&mut self, rhs: T) {
         *self = *self ^ rhs;
+    }
+}
+
+impl fmt::Display for Bitboard {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::with_capacity(72);
+
+        for i in 0..8 {
+            for j in 0..8 {
+                if self.0 & (1 << ((7 - i) * 8 + j)) > 0 {
+                    s.push('1');
+                } else {
+                    s.push('.');
+                }
+            }
+
+            s.push('\n');
+        }
+
+        write!(f, "{s}")
     }
 }

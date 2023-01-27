@@ -11,7 +11,8 @@ pub mod prelude {
     pub use crate::filerank::*;
     pub use crate::square::Square;
     pub use crate::color::Color;
-    pub use crate::init::{pawn_attack, knight_attack, king_attack, between};
+    pub use crate::init::{init as init_comp, pawn_attack, knight_attack, king_attack, between};
+    pub use crate::magic::{initalize_magics, rook_moves, bishop_moves};
 }
 
 // If we want to use PEXT instructions
