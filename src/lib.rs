@@ -23,3 +23,8 @@ pub mod prelude {
 pub const USE_PEXT: bool = true;
 #[cfg(not(feature = "pext"))]
 pub const USE_PEXT: bool = false;
+
+#[cfg(target_pointer_width = "64")]
+pub const IS_64_BIT: bool = true;
+#[cfg(not(target_pointer_width = "64"))]
+pub const IS_64_BIT: bool = false;
