@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use crate::bitboard::Bitboard;
 use crate::square::Square;
-use crate::filerank::{File, Rank};
+use crate::filerank::File;
 use crate::color::Color;
 
 static mut KNIGHT_ATTACKS: [Bitboard; 64] = Bitboard::arr::<64>();

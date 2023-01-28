@@ -42,8 +42,18 @@ impl Square {
 
     pub fn dist(self, other: Self) -> u32 {
         // Unsigned distance (king moves)
-        let fd = (self.file() as u32).abs_diff(other.rank() as u32);
+        let fd = (self.file() as u32).abs_diff(other.file() as u32);
         let rd = (self.rank() as u32).abs_diff(other.rank() as u32);
         fd.max(rd)
+    }
+
+    pub fn safe_move(self, jmp: i32) -> bool {
+        if jmp < 0 && -jmp > self.inner() as i32 { return false; }
+        let to = Self((self.inner() as i32 + jmp) as u8);
+        if to.is_ok() && self.dist(to) <= 2 {
+            true
+        } else {
+            false
+        }
     }
 }

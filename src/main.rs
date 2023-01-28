@@ -5,6 +5,7 @@ fn main() {
     initalize_magics();
 
     let s1 = Square::create(File::E, Rank::Four);
-
-    //print!("{}", rook_moves(s1, Bitboard::ZERO));
+    let oc = Bitboard::new(4536693952512);
+    println!("{s1:?}");
+    println!("{}", rook_moves(s1, oc));
 }

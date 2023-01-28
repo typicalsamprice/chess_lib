@@ -5,6 +5,7 @@ mod square;
 
 mod init;
 mod magic;
+mod prng;
 
 pub mod prelude {
     pub use crate::bitboard::Bitboard;

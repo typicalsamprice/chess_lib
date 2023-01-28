@@ -1,4 +1,5 @@
 // Used in magic generation for random u64s
+#[derive(Debug)]
 pub struct Prng(u64);
 
 impl Prng {
