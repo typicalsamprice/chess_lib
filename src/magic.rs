@@ -174,18 +174,6 @@ fn init_magics<const IS_ROOK: bool>(attack_table: &'static mut [Bitboard], magic
     });
 }
 
-fn gen_sparse(num: &mut u64, mult: u64, rng: &mut WyRand) {
-    loop {
-        *num = generate_sparse_u64(rng);
-
-        if (num.wrapping_mul(mult) >> 56).popcnt() >= 6 {
-            return;
-        }
-    }
-}
-fn generate_sparse_u64(rng: &mut WyRand) -> u64 {
-    rng.generate::<u64>()
-}
 pub fn initalize_magics() {
     unsafe {
         init_magics::<true>(&mut ROOK_ATTACK_TABLE, &mut R_MAGICS);
