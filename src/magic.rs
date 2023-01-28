@@ -4,7 +4,7 @@ use crate::bitboard::Bitboard;
 use crate::filerank::{File, Rank};
 use crate::prng::Prng;
 use crate::square::Square;
-use crate::USE_PEXT;
+use crate::{USE_PEXT, IS_64_BIT};
 
 static mut BISHOP_ATTACK_TABLE: [Bitboard; 0x1480] = [Bitboard::ZERO; 0x1480];
 static mut ROOK_ATTACK_TABLE: [Bitboard; 0x19000] = [Bitboard::ZERO; 0x19000];
@@ -36,7 +36,7 @@ impl Magic {
             return occ.inner().pext(self.mask) as u32;
         }
 
-        if usize::BITS == 64 {
+        if IS_64_BIT {
             return (((occ & Bitboard::new(self.mask))
                 .inner()
                 .wrapping_mul(self.magic))
@@ -97,7 +97,7 @@ fn init_magics<const IS_ROOK: bool>(
 
         let m = &mut magic_table[s.inner() as usize];
         m.mask = slider_attack::<IS_ROOK>(s, Bitboard::ZERO).inner() &! edges.inner();
-        let max: u32 = if usize::BITS == 64 { 64 } else { 32 };
+        let max: u32 = if IS_64_BIT { 64 } else { 32 };
         m.shift = max.abs_diff(m.mask.popcnt() as u32);
         m.ptr = ptr;
 
@@ -128,7 +128,7 @@ fn init_magics<const IS_ROOK: bool>(
         let mut epoch = [0i32; 4096];
         let mut i = 0;
 
-        let mut rng = Prng::new(seeds[(usize::BITS == 64) as usize][s.rank() as usize]);
+        let mut rng = Prng::new(seeds[IS_64_BIT as usize][s.rank() as usize]);
 
         while i < sz {
             m.magic = 0; // Just reset it.
