@@ -2,6 +2,12 @@
 name = "chess-lib"
 version = "0.1.0"
 edition = "2021"
+description = "A chess engine library"
+license = "GPL-3.0"
+repository = "https://github.com/typicalsamprice/chess_lib"
+readme = "README.md"
+keywords = ["chess"]
+categories = ["chess"]
 
 [features]
 default = []

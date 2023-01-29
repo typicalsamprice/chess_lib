@@ -1,10 +1,28 @@
+/*
+    ChessLib, a UCI chess engine
+    Copyright (C) 2023 Sam Price
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 use bitintr::{Pext, Popcnt};
 
 use crate::bitboard::Bitboard;
 use crate::filerank::{File, Rank};
 use crate::prng::Prng;
 use crate::square::Square;
-use crate::{USE_PEXT, IS_64_BIT};
+use crate::{IS_64_BIT, USE_PEXT};
 
 static mut BISHOP_ATTACK_TABLE: [Bitboard; 0x1480] = [Bitboard::ZERO; 0x1480];
 static mut ROOK_ATTACK_TABLE: [Bitboard; 0x19000] = [Bitboard::ZERO; 0x19000];
@@ -46,7 +64,7 @@ impl Magic {
         let lo = (occ.inner() as u32) & (self.mask as u32);
         let hi = ((occ.inner() >> 32) as u32) & ((self.mask >> 32) as u32);
 
-        return (lo * (self.magic as u32) ^ hi * ((self.magic >> 32) as u32)) >> self.shift;
+        (lo * (self.magic as u32) ^ (hi * ((self.magic >> 32) as u32))) >> self.shift
     }
 }
 
@@ -96,7 +114,7 @@ fn init_magics<const IS_ROOK: bool>(
             | (Bitboard::from(Rank::One) | Bitboard::from(Rank::Eight)).and_not(s.rank());
 
         let m = &mut magic_table[s.inner() as usize];
-        m.mask = slider_attack::<IS_ROOK>(s, Bitboard::ZERO).inner() &! edges.inner();
+        m.mask = slider_attack::<IS_ROOK>(s, Bitboard::ZERO).inner() & !edges.inner();
         let max: u32 = if IS_64_BIT { 64 } else { 32 };
         m.shift = max.abs_diff(m.mask.popcnt() as u32);
         m.ptr = ptr;

@@ -1,3 +1,21 @@
+/*
+    ChessLib, a UCI chess engine
+    Copyright (C) 2023 Sam Price
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 use crate::filerank::{File, Rank};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -29,14 +47,11 @@ impl Square {
 
     pub const fn in_line(self, other: Self) -> bool {
         // Uses a lot of `as u8` to make it `const`-ified
-        if self.file() as u8 == other.file() as u8 {
-            true
-        } else if self.rank() as u8 == other.rank() as u8 {
-            true
-        } else if (self.file() as u8).abs_diff(other.file() as u8) == (self.rank() as u8).abs_diff(other.rank() as u8) {
+        if (self.file() as u8 == other.file() as u8) || (self.rank() as u8 == other.rank() as u8) {
             true
         } else {
-            false
+            (self.file() as u8).abs_diff(other.file() as u8)
+                == (self.rank() as u8).abs_diff(other.rank() as u8)
         }
     }
 
@@ -48,12 +63,10 @@ impl Square {
     }
 
     pub fn safe_move(self, jmp: i32) -> bool {
-        if jmp < 0 && -jmp > self.inner() as i32 { return false; }
-        let to = Self((self.inner() as i32 + jmp) as u8);
-        if to.is_ok() && self.dist(to) <= 2 {
-            true
-        } else {
-            false
+        if jmp < 0 && -jmp > self.inner() as i32 {
+            return false;
         }
+        let to = Self((self.inner() as i32 + jmp) as u8);
+        to.is_ok() && self.dist(to) <= 2
     }
 }

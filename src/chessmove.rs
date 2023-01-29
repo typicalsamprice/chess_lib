@@ -1,5 +1,23 @@
-use crate::square::Square;
+/*
+    ChessLib, a UCI chess engine
+    Copyright (C) 2023 Sam Price
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 use crate::piece::PType;
+use crate::square::Square;
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Move(u32);
@@ -10,7 +28,7 @@ pub enum MType {
     Normal,
     EnPassant,
     Promotion,
-    Castle
+    Castle,
 }
 
 impl Move {
@@ -21,10 +39,10 @@ impl Move {
         unsafe { Square::new(((self.0 as u8) >> 6) & 7) }
     }
     pub const fn kind(self) -> MType {
-        unsafe { std::mem::transmute(((self.0 as u8) >> 12) & 3) }
+        unsafe { std::mem::transmute((self.0 >> 12) as u8 & 3) }
     }
-    pub const fn promo(self) -> PType  {
-        unsafe { std::mem::transmute((self.0 as u8) >> 14) }
+    pub const fn promo(self) -> PType {
+        unsafe { std::mem::transmute((self.0 >> 14) as u8) }
     }
 
     pub fn new(from: Square, to: Square) -> Self {

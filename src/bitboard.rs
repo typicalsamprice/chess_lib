@@ -1,8 +1,26 @@
+/*
+    ChessLib, a UCI chess engine
+    Copyright (C) 2023 Sam Price
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 use std::fmt;
 use std::ops;
 
-use crate::square::Square;
 use crate::filerank::{File, Rank};
+use crate::square::Square;
 
 #[cfg(feature = "pext")]
 use bitintr::Pext;
@@ -43,7 +61,9 @@ impl Bitboard {
     pub fn map_by_square<F: FnMut(Square)>(self, mut f: F) {
         let mut copy = self;
         loop {
-            if copy.zero() { return; }
+            if copy.zero() {
+                return;
+            }
             let tz = copy.0.trailing_zeros();
             debug_assert!(tz < 64);
             let lsb = unsafe { Square::new(tz as u8) };
@@ -55,7 +75,9 @@ impl Bitboard {
     pub fn map_by_board<F: FnMut(Self)>(self, mut f: F) {
         let mut copy = self;
         loop {
-            if copy.zero() { return; }
+            if copy.zero() {
+                return;
+            }
 
             let first_one = copy & -copy;
             copy.0 &= copy.0 - 1;
@@ -64,7 +86,9 @@ impl Bitboard {
     }
 
     pub const fn get_square(self) -> Square {
-        if self.zero() { return Square::NULL }
+        if self.zero() {
+            return Square::NULL;
+        }
         unsafe { Square::new(self.0.trailing_zeros() as u8) }
     }
 }
@@ -117,14 +141,16 @@ impl ops::Shr<u32> for Bitboard {
 }
 
 impl<T> ops::ShlAssign<T> for Bitboard
-    where Self: ops::Shl<T, Output = Self>
+where
+    Self: ops::Shl<T, Output = Self>,
 {
     fn shl_assign(&mut self, rhs: T) {
         *self = *self << rhs;
     }
 }
 impl<T> ops::ShrAssign<T> for Bitboard
-    where Self: ops::Shr<T, Output = Self>
+where
+    Self: ops::Shr<T, Output = Self>,
 {
     fn shr_assign(&mut self, rhs: T) {
         *self = *self >> rhs;
