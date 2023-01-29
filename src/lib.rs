@@ -2,18 +2,21 @@ mod bitboard;
 mod color;
 mod filerank;
 mod square;
-
 mod init;
 mod magic;
 mod prng;
+mod movegen;
+mod chessmove;
+mod piece;
 
 pub mod prelude {
-    pub use crate::bitboard::Bitboard;
+    pub use crate::bitboard::*;
     pub use crate::filerank::*;
-    pub use crate::square::Square;
-    pub use crate::color::Color;
+    pub use crate::square::*;
+    pub use crate::color::*;
     pub use crate::init::{init as init_comp, pawn_attack, knight_attack, king_attack, between};
     pub use crate::magic::{initalize_magics, rook_moves, bishop_moves};
+    pub use crate::piece::*;
 }
 
 // If we want to use PEXT instructions
