@@ -16,8 +16,22 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+use std::ops::Not;
+
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Color {
+    #[default]
     White,
     Black,
+}
+
+impl Not for Color {
+    type Output = Self;
+    #[inline]
+    fn not(self) -> Self {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White
+        }
+    }
 }

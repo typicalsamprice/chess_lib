@@ -74,6 +74,27 @@ impl From<u8> for Rank {
     }
 }
 
+impl TryFrom<char> for File {
+    type Error = ();
+    fn try_from(c: char) -> Result<Self, ()> {
+        if !('a'..='h').contains(&c) {
+            return Err(());
+        }
+
+        Ok(Self::from(c as u8 - b'a'))
+    }
+}
+impl TryFrom<char> for Rank {
+    type Error = ();
+    fn try_from(c: char) -> Result<Self, ()> {
+        if !('1'..='8').contains(&c) {
+            return Err(());
+        }
+
+        Ok(Self::from(c as u8 - b'1'))
+    }
+}
+
 impl Add<File> for Rank {
     type Output = Square;
     fn add(self, rhs: File) -> Square {

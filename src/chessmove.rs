@@ -32,31 +32,43 @@ pub enum MType {
 }
 
 impl Move {
+    pub const NULL: Self = Self(0);
+
+    #[inline]
+    pub const fn is_ok(self) -> bool {
+        self.from().inner() != self.to().inner()
+    }
+
+    #[inline]
     pub const fn from(self) -> Square {
         unsafe { Square::new(self.0 as u8 & 7) }
     }
+    #[inline]
     pub const fn to(self) -> Square {
         unsafe { Square::new(((self.0 as u8) >> 6) & 7) }
     }
+    #[inline]
     pub const fn kind(self) -> MType {
         unsafe { std::mem::transmute((self.0 >> 12) as u8 & 3) }
     }
+    #[inline]
     pub const fn promo(self) -> PType {
         unsafe { std::mem::transmute((self.0 >> 14) as u8) }
     }
 
+    #[inline]
     pub fn new(from: Square, to: Square) -> Self {
         let f6 = from.inner() as u32;
         let s6 = (to.inner() as u32) << 6;
         Self(f6 | s6)
     }
 
-    pub fn add_type(self, ty: MType) -> Self {
+    #[inline]
+    pub const fn add_type(self, ty: MType) -> Self {
         Self(self.0 | ((ty as u32) << 12))
     }
-
-    pub fn add_promo(self, ty: PType) -> Self {
-        debug_assert_eq!(self.kind(), MType::Promotion);
-        Self(self.0 | ((ty as u32) << 14))
+    #[inline]
+    pub const fn add_promo(self, ty: PType) -> Self {
+        Self(self.add_type(MType::Promotion).0 | ((ty as u32) << 14))
     }
 }

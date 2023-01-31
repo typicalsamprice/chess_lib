@@ -16,9 +16,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+use std::fmt;
 use crate::color::Color;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Piece(u8);
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -33,8 +34,74 @@ pub enum PType {
 }
 
 impl Piece {
+    pub const NULL: Self = Self(0xF);
     #[inline]
     pub const fn new(ty: PType, color: Color) -> Self {
         Self(((color as u8) << 3) | ty as u8)
+    }
+    #[inline]
+    pub const fn is_ok(self) -> bool {
+        self.0 != 0xF
+    }
+
+    #[inline]
+    pub const fn inner(self) -> u8 {
+        self.0
+    }
+
+    #[inline]
+    pub const fn color(self) -> Color {
+        match self.0 & 0b1000 {
+            0b1000 => Color::Black,
+            0 => Color::White,
+            _ => panic!()
+        }
+    }
+    #[inline]
+    pub const fn kind(self) -> PType {
+        unsafe { std::mem::transmute(self.0 & 7) }
+    }
+}
+
+impl TryFrom<char> for PType {
+    type Error = ();
+    fn try_from(c: char) -> Result<Self, ()> {
+        Ok(match c {
+            'p' => Self::Pawn,
+            'n' => Self::Knight,
+            'b' => Self::Bishop,
+            'r' => Self::Rook,
+            'q' => Self::Queen,
+            'k' => Self::King,
+            _ => return Err(())
+        })
+    }
+}
+impl TryFrom<char> for Piece {
+    type Error = ();
+    fn try_from(c: char) -> Result<Self, ()> {
+        let ty = PType::try_from(c.to_ascii_lowercase())?;
+        if c.is_ascii_uppercase() {
+            Ok(Self::new(ty, Color::White))
+        } else {
+            Ok(Self::new(ty, Color::Black))
+        }
+    }
+}
+
+impl fmt::Display for PType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", b"pnbrqk"[*self as usize] as char)
+    }
+}
+impl fmt::Display for Piece {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let c = self.kind().to_string().chars().nth(0).unwrap();
+        let ch = if self.color() == Color::White {
+            c.to_ascii_uppercase()
+        } else {
+            c
+        };
+        write!(f, "{}", ch)
     }
 }

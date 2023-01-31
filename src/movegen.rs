@@ -15,7 +15,10 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 use crate::chessmove::{MType, Move};
+use crate::position::{Position, State, Castle};
+use crate::bitboard::Bitboard;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum GenType {
@@ -24,4 +27,18 @@ pub enum GenType {
     NonEvasions,
     Quiet,
     QuietChecks,
+}
+
+pub fn generate_all(pos: &Position, list: &mut Vec<Move>, gt: GenType) {
+}
+
+pub fn generate_legal(pos: &Position, list: &mut Vec<Move>) {
+    let us = pos.to_move();
+    let gt = if pos.state().checkers().nonzero() {
+        GenType::NonEvasions
+    } else {
+        GenType::Evasions
+    };
+
+    generate_all(pos, list, gt);
 }

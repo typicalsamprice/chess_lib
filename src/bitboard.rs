@@ -32,30 +32,50 @@ impl Bitboard {
     pub const ZERO: Self = Self(0);
     pub const MAX: Self = Self(!0);
 
+    #[inline]
     pub const fn new(value: u64) -> Self {
         Self(value)
     }
+    #[inline]
     pub const fn inner(self) -> u64 {
         self.0
     }
 
+    #[inline]
     pub const fn more_than_one(self) -> bool {
         (self.0 - 1) & self.0 > 0
     }
 
+    #[inline]
     pub const fn zero(self) -> bool {
         self.0 == 0
     }
+    #[inline]
     pub const fn nonzero(self) -> bool {
         !self.zero()
     }
 
+    #[inline]
     pub const fn popcnt(self) -> u32 {
         self.0.count_ones()
     }
 
+    #[inline]
     pub fn and_not<T: Into<Self>>(self, rhs: T) -> Self {
         self & !rhs.into()
+    }
+
+    #[inline]
+    pub const fn const_or(self, rhs: Self) -> Self {
+        Self(self.inner() | rhs.inner())
+    }
+    #[inline]
+    pub const fn const_and(self, rhs: Self) -> Self {
+        Self(self.inner() & rhs.inner())
+    }
+    #[inline]
+    pub const fn const_xor(self, rhs: Self) -> Self {
+        Self(self.inner() ^ rhs.inner())
     }
 
     pub fn map_by_square<F: FnMut(Square)>(self, mut f: F) {
@@ -85,6 +105,7 @@ impl Bitboard {
         }
     }
 
+    #[inline]
     pub const fn get_square(self) -> Square {
         if self.zero() {
             return Square::NULL;

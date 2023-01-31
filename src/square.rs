@@ -70,3 +70,9 @@ impl Square {
         to.is_ok() && self.dist(to) <= 2
     }
 }
+
+impl Default for Square {
+    fn default() -> Self {
+        Self(64)
+    }
+}
