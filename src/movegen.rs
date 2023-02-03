@@ -16,15 +16,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::chessmove::{MType, Move};
-use crate::square::Square;
-use crate::position::{Position, State, Castle};
-use crate::piece::PType::{self, *};
 use crate::bitboard::Bitboard;
+use crate::chessmove::{MType, Move};
 use crate::color::Color;
-use crate::filerank::{Rank, File};
+use crate::filerank::{File, Rank};
 use crate::init::{between, king_attack, knight_attack, pawn_attack};
-use crate::magic::{bishop_moves, rook_moves, queen_moves};
+use crate::magic::{bishop_moves, queen_moves, rook_moves};
+use crate::piece::PType::{self, *};
+use crate::position::{Castle, Position, State};
+use crate::square::{individual_squares::*, Square};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum GenType {
@@ -35,14 +35,24 @@ pub enum GenType {
     QuietChecks,
 }
 
-fn generate_pawn_moves(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType, target: Bitboard) {
+fn generate_pawn_moves(
+    pos: &Position,
+    list: &mut Vec<Move>,
+    us: Color,
+    gt: GenType,
+    target: Bitboard,
+) {
     let r3bb = Bitboard::from(Rank::Three.relative(us));
     let r7bb = Bitboard::from(Rank::Seven.relative(us));
     let pawns = pos.spec(Pawn, us);
     let on_7 = pawns & r7bb;
     let other = pawns ^ on_7;
 
-    let enemies = pos.color(!us);
+    let enemies = if gt == GenType::Evasions {
+        pos.state().checkers()
+    } else {
+        pos.color(!us)
+    };
     let empty = !pos.all();
 
     let fw = Color::pawn_push(us);
@@ -145,7 +155,14 @@ fn generate_pawn_moves(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenT
     }
 }
 
-fn generate_piece_moves(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType, target: Bitboard, checks: bool) {
+fn generate_piece_moves(
+    pos: &Position,
+    list: &mut Vec<Move>,
+    us: Color,
+    gt: GenType,
+    target: Bitboard,
+    checks: bool,
+) {
     for pt in [Knight, Bishop, Rook, Queen] {
         let pcs = pos.spec(pt, us);
         pcs.map_by_square(|s| {
@@ -168,8 +185,9 @@ fn gen_attacks(square: Square, pt: PType, occ: Bitboard, friendly: Bitboard) -> 
         Knight => knight_attack(square).and_not(friendly),
         Bishop => bishop_moves(square, occ).and_not(friendly),
         Rook => rook_moves(square, occ).and_not(friendly),
-        Queen => gen_attacks(square, Rook, occ, friendly)
-            | gen_attacks(square, Bishop, occ, friendly)
+        Queen => {
+            gen_attacks(square, Rook, occ, friendly) | gen_attacks(square, Bishop, occ, friendly)
+        }
     }
 }
 
@@ -208,46 +226,24 @@ fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
         });
 
         if (gt == GenType::Quiet || gt == GenType::NonEvasions)
-            && pos.state().cur_castle().castle_for(us) != (false, false) {
-                let (ksc, qsc) = pos.state().cur_castle().castle_for(us);
-                if ksc {
-                    let dest = Square::create(File::G, king.rank());
-                    let ib = between(king, dest) | dest;
-                    if (pos.all() & between(king, Square::create(File::G, king.rank()))).zero() {
-                        let mut flag = true;
-                        ib.map_by_square(|s| {
-                            if !flag { return; }
-                            if (pos.attacks_to(s) & pos.color(!us)).nonzero() {
-                                flag = false;
-                                return;
-                            }
-                        });
-
-                        if flag {
-                            list.push(Move::new(king, dest).add_type(MType::Castle));
-                        }
-                    }
-                }
-                if qsc {
-                    let dest = Square::create(File::C, king.rank());
-                    let ib = between(king, dest) | dest;
-                    if (pos.all() & between(king, Square::create(File::B, king.rank()))).zero() {
-                        let mut flag = true;
-                        ib.map_by_square(|s| {
-                            if !flag { return; }
-                            if (pos.attacks_to(s) & pos.color(!us)).nonzero() {
-                                flag = false;
-                                return;
-                            }
-                        });
-
-                        if flag {
-                            list.push(Move::new(king, dest).add_type(MType::Castle));
-                        }
-                    }
+            && pos.state().cur_castle().castle_for(us) != (false, false)
+        {
+            let (ksc, qsc) = pos.state().cur_castle().castle_for(us);
+            if ksc {
+                let rk = H1.relative(us);
+                let ib = between(king, rk);
+                if (pos.all() & ib).zero() {
+                    list.push(Move::new(king, G1.relative(us)).add_type(MType::Castle));
                 }
             }
-
+            if qsc {
+                let rk = A1.relative(us);
+                let ib = between(king, rk);
+                if (pos.all() & ib).zero() {
+                    list.push(Move::new(king, C1.relative(us)).add_type(MType::Castle));
+                }
+            }
+        }
     }
 }
 
@@ -256,13 +252,32 @@ pub fn generate_all(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType
     generate_for(pos, list, us, gt);
 }
 
-pub fn generate_legal(pos: &Position, list: &mut Vec<Move>) {
+pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut Vec<Move>) {
     let us = pos.to_move();
-    list.clear();
+    if CLEAR_PREV {
+        list.clear();
+    }
     let gt = if pos.state().checkers().zero() {
         GenType::NonEvasions
-    } else  {
+    } else {
         GenType::Evasions
     };
     generate_all(pos, list, us, gt);
+
+    let pinned = pos.state().blockers(us) & pos.color(us);
+    let k = pos.king(us);
+
+    let mut i = 0;
+    loop {
+        let Some(mv) = list.get(i) else {
+            break;
+        };
+        if ((pinned & mv.from()).nonzero() || mv.from() == k || mv.kind() == MType::EnPassant)
+            && !pos.is_legal(*mv)
+        {
+            list.remove(i);
+        } else {
+            i += 1;
+        }
+    }
 }

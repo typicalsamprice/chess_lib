@@ -16,8 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use std::ops::Not;
 use crate::bitboard::Bitboard;
+use std::ops::Not;
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Color {
@@ -27,11 +27,10 @@ pub enum Color {
 }
 
 impl Color {
-    pub fn pawn_push(self) -> Box<fn(Bitboard) -> Bitboard>
-    {
+    pub fn pawn_push(self) -> Box<fn(Bitboard) -> Bitboard> {
         Box::new(match self {
             Self::White => push_n,
-            Self::Black => push_s
+            Self::Black => push_s,
         })
     }
 }
@@ -49,7 +48,7 @@ impl Not for Color {
     fn not(self) -> Self {
         match self {
             Color::White => Color::Black,
-            Color::Black => Color::White
+            Color::Black => Color::White,
         }
     }
 }

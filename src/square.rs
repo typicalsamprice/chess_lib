@@ -18,8 +18,8 @@
 
 use std::fmt;
 
-use crate::filerank::{File, Rank};
 use crate::color::Color;
+use crate::filerank::{File, Rank};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Square(u8);
@@ -53,7 +53,9 @@ impl Square {
     }
 
     pub const fn in_line(self, other: Self) -> bool {
-        if self.inner() == other.inner() { return false; }
+        if self.inner() == other.inner() {
+            return false;
+        }
         // Uses a lot of `as u8` to make it `const`-ified
         if (self.file() as u8 == other.file() as u8) || (self.rank() as u8 == other.rank() as u8) {
             true
@@ -70,8 +72,6 @@ impl Square {
             if other1.partial_cmp(&other2) != Some(cmp) {
                 return false;
             }
-
-
         }
 
         false
@@ -108,27 +108,24 @@ impl fmt::Display for Square {
 pub mod individual_squares {
     use super::Square;
     macro_rules! const_make_square_from_chars {
-        ($STR_SLICE:literal) => {{
-            let f = unsafe { std::mem::transmute($STR_SLICE.as_bytes()[0] - b'a') };
+        ($STR_SLICE:expr) => {{
+            let f = unsafe { std::mem::transmute($STR_SLICE.as_bytes()[0] - b'A') };
             let r = unsafe { std::mem::transmute($STR_SLICE.as_bytes()[1] - b'1') };
             Square::create(f, r)
         }};
     }
 
     macro_rules! make_pub_const {
-        ($($SQ:ident $STR:literal),+) => {
+        ($($SQ:ident),+) => {
             $(
-                pub const $SQ: Square = const_make_square_from_chars!($STR);
+                pub const $SQ: Square = const_make_square_from_chars!(stringify!($SQ));
             )+
         };
     }
 
-    make_pub_const!(A1 "a1", B1 "b1", C1 "c1", D1 "d1", E1 "e1", F1 "f1", G1 "g1", H1 "h1",
-                    A2 "a2", B2 "b2", C2 "c2", D2 "d2", E2 "e2", F2 "f2", G2 "g2", H2 "h2",
-                    A3 "a3", B3 "b3", C3 "c3", D3 "d3", E3 "e3", F3 "f3", G3 "g3", H3 "h3",
-                    A4 "a4", B4 "b4", C4 "c4", D4 "d4", E4 "e4", F4 "f4", G4 "g4", H4 "h4",
-                    A5 "a5", B5 "b5", C5 "c5", D5 "d5", E5 "e5", F5 "f5", G5 "g5", H5 "h5",
-                    A6 "a6", B6 "b6", C6 "c6", D6 "d6", E6 "e6", F6 "f6", G6 "g6", H6 "h6",
-                    A7 "a7", B7 "b7", C7 "c7", D7 "d7", E7 "e7", F7 "f7", G7 "g7", H7 "h7",
-                    A8 "a8", B8 "b8", C8 "c8", D8 "d8", E8 "e8", F8 "f8", G8 "g8", H8 "h8");
+    make_pub_const!(
+        A1, B1, C1, D1, E1, F1, G1, H1, A2, B2, C2, D2, E2, F2, G2, H2, A3, B3, C3, D3, E3, F3, G3,
+        H3, A4, B4, C4, D4, E4, F4, G4, H4, A5, B5, C5, D5, E5, F5, G5, H5, A6, B6, C6, D6, E6, F6,
+        G6, H6, A7, B7, C7, D7, E7, F7, G7, H7, A8, B8, C8, D8, E8, F8, G8, H8
+    );
 }

@@ -17,9 +17,9 @@
 */
 
 use std::fmt;
+use std::num::NonZeroUsize;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::num::NonZeroUsize;
 
 use crate::prelude::*;
 use Color::*;
@@ -48,7 +48,7 @@ pub struct State {
 
     captured: Piece,
 
-    prev: Option<Rc<State>>
+    prev: Option<Rc<State>>,
 }
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
@@ -120,27 +120,35 @@ impl Position {
         } else {
             let k = self.king(!self.to_move());
             let mut discoverer = Square::NULL;
-            self.state().pinners(self.to_move()).map_by_square(|pinner| {
-                if discoverer.is_ok() { return; }
-                if pinner.in_line2(blocker.get_square(), k) {
-                    discoverer = pinner;
-                    return;
-                }
-            });
+            self.state()
+                .pinners(self.to_move())
+                .map_by_square(|pinner| {
+                    if discoverer.is_ok() {
+                        return;
+                    }
+                    if pinner.in_line2(blocker.get_square(), k) {
+                        discoverer = pinner;
+                        return;
+                    }
+                });
 
-            discoverer.in_line2(blocker.get_square(), k) || blocker.get_square().in_line2(discoverer, k)
+            discoverer.in_line2(blocker.get_square(), k)
+                || blocker.get_square().in_line2(discoverer, k)
         };
 
         is_discovery || is_moving_to_check
     }
 
     pub fn attacks_to(&self, square: Square) -> Bitboard {
+        self.attacks_to_occ(square, self.all())
+    }
+    pub fn attacks_to_occ(&self, square: Square, occ: Bitboard) -> Bitboard {
         let pawns = (pawn_attack(square, White) & self.spec(PType::Pawn, Black))
             | (pawn_attack(square, Black) & self.spec(PType::Pawn, White));
         let knights = knight_attack(square) & self.piece(PType::Knight);
         let kings = king_attack(square) & self.piece(PType::King);
-        let bish = bishop_moves(square, self.all()) & self.piece_2t(PType::Bishop, PType::Queen);
-        let rook = rook_moves(square, self.all()) & self.piece_2t(PType::Rook, PType::Queen);
+        let bish = bishop_moves(square, occ) & self.piece_2t(PType::Bishop, PType::Queen);
+        let rook = rook_moves(square, occ) & self.piece_2t(PType::Rook, PType::Queen);
 
         pawns | knights | kings | bish | rook
     }
@@ -157,7 +165,6 @@ impl Position {
     fn clear_square(&mut self, square: Square) -> Piece {
         let p = self.board[square.inner() as usize];
 
-
         if p.is_ok() {
             self.board[square.inner() as usize] = Piece::NULL;
             self.colors[p.color() as usize] ^= square;
@@ -171,7 +178,49 @@ impl Position {
         todo!();
     }
     pub fn is_legal(&self, mv: Move) -> bool {
-        todo!();
+        let us = self.to_move();
+        let k = self.king(us);
+        let from = mv.from();
+        let to = mv.to();
+        let ty = mv.kind();
+        let moved = self.piece_on(from);
+        let cap = self.piece_on(to);
+
+        debug_assert_eq!(moved.color(), us);
+        debug_assert_ne!(moved, Piece::NULL);
+
+        if ty == MType::EnPassant {
+            let bw = (!us).pawn_push();
+            debug_assert_eq!(self.state().ep(), to);
+            debug_assert_eq!(moved, Piece::new(PType::Pawn, us));
+            debug_assert_eq!(cap, Piece::NULL);
+            let pawn_cap_sq = bw(Bitboard::from(to)).get_square();
+            let pawn_cap = self.piece_on(pawn_cap_sq);
+            debug_assert_eq!(pawn_cap, Piece::new(PType::Pawn, !us));
+
+            let occ = self.all() ^ from ^ to ^ pawn_cap_sq;
+            return (rook_moves(k, occ) & self.spec_2t(PType::Queen, PType::Rook, !us)).zero()
+                && (bishop_moves(k, occ) & self.spec_2t(PType::Queen, PType::Bishop, !us)).zero();
+        } else if ty == MType::Castle {
+            let ib = between(k, to);
+            let mut valid = true;
+            ib.map_by_square(|s| {
+                if !valid {
+                    return;
+                }
+                if (self.attacks_to(s) & self.color(!us)).nonzero() {
+                    valid = false;
+                }
+            });
+
+            return valid;
+        }
+
+        if from == k {
+            return (self.attacks_to_occ(to, self.all() ^ from) & self.color(!us)).zero();
+        }
+
+        (self.state().blockers(us) & from).zero() || (from.in_line2(to, k) || to.in_line2(from, k))
     }
 
     pub fn do_move(&mut self, mv: Move) {
@@ -224,7 +273,7 @@ impl Position {
             debug_assert_eq!(rk, Piece::new(PType::Rook, us));
             self.add_piece(Square::create(rook_dest_file, from.rank()), rk);
             // Remove all rights for that color
-            st.castle = Castle(st.castle.inner() &! (5 << us as u32));
+            st.castle = Castle(st.castle.inner() & !(5 << us as u32));
         }
 
         // Detect killing Their rooks
@@ -232,7 +281,7 @@ impl Position {
             let bit: u8 = match to.relative(us).inner() {
                 56 => 2 << (2 * us as u8),
                 63 => 1 << (2 * us as u8),
-                _ => 0
+                _ => 0,
             };
             st.castle.0 &= !bit;
         }
@@ -262,8 +311,8 @@ impl Position {
 
         let mut st = None;
         std::mem::swap(&mut self.state.prev, &mut st);
-        self.state = Rc::try_unwrap(st.unwrap())
-            .expect("Undo-move tried to reset to nonexistent state");
+        self.state =
+            Rc::try_unwrap(st.unwrap()).expect("Undo-move tried to reset to nonexistent state");
         self.to_move = !self.to_move;
         let us = self.to_move();
 
@@ -307,7 +356,8 @@ impl Position {
         let is_leaf = depth == 2;
 
         let mut moves = vec![];
-        generate_legal(self, &mut moves);
+        // Say 'false' here to skip a clear
+        generate_legal::<false>(self, &mut moves);
 
         for mv in moves.clone() {
             if Root && depth == 1 {
@@ -317,7 +367,7 @@ impl Position {
                 self.do_move(mv);
 
                 cnt = if is_leaf {
-                    generate_legal(self, &mut moves);
+                    generate_legal::<true>(self, &mut moves);
                     moves.len()
                 } else {
                     self.perft::<false>(depth - 1)
@@ -372,7 +422,9 @@ impl Position {
             let sliders = rooks | bish;
             sliders.map_by_square(|sq| {
                 let b = between(k, sq) & self.all();
-                if b.popcnt() != 1 { return; }
+                if b.popcnt() != 1 {
+                    return;
+                }
                 let p = self.piece_on(b.get_square());
                 debug_assert_ne!(p, Piece::NULL);
                 if p.color() == col {
@@ -388,7 +440,7 @@ impl Position {
         macro_rules! f {
             () => {
                 fen.push(' ');
-            }
+            };
         }
 
         for i in 0..8 {
@@ -419,7 +471,7 @@ impl Position {
         f!();
         fen.push(match self.to_move {
             Color::White => 'w',
-            _ => 'b'
+            _ => 'b',
         });
         f!();
 
@@ -429,10 +481,18 @@ impl Position {
             let (wk, wq) = self.state.cur_castle().castle_for(Color::White);
             let (bk, bq) = self.state.cur_castle().castle_for(Color::Black);
 
-            if wk { fen.push('K'); }
-            if wq { fen.push('Q'); }
-            if bk { fen.push('k'); }
-            if bq { fen.push('q'); }
+            if wk {
+                fen.push('K');
+            }
+            if wq {
+                fen.push('Q');
+            }
+            if bk {
+                fen.push('k');
+            }
+            if bq {
+                fen.push('q');
+            }
         }
         f!();
 
@@ -504,7 +564,7 @@ impl Default for Position {
             colors: [Bitboard::ZERO; 2],
             ply: 0,
             to_move: White,
-            state: State::default()
+            state: State::default(),
         }
     }
 }
@@ -517,7 +577,9 @@ impl FromStr for Position {
 
         let mut s = 56;
         for c in schars.by_ref() {
-            if c == ' ' { break; }
+            if c == ' ' {
+                break;
+            }
             if c.is_ascii_digit() {
                 debug_assert!(c != '0' && c != '9');
                 s += c as u8 - b'0';
@@ -552,8 +614,9 @@ impl FromStr for Position {
         }
 
         for c in schars.by_ref() {
-            if c == ' ' { break; }
-            else if c == '-' {
+            if c == ' ' {
+                break;
+            } else if c == '-' {
                 debug_assert_eq!(p.state.castle.inner(), 0);
                 if schars.next() != Some(' ') {
                     return Err("No field 4 given");
@@ -565,19 +628,19 @@ impl FromStr for Position {
                 'K' => {
                     debug_assert_eq!(p.state.castle.inner() & 1, 0);
                     p.state.castle.0 |= 1;
-                },
+                }
                 'Q' => {
                     debug_assert_eq!(p.state.castle.inner() & 2, 0);
                     p.state.castle.0 |= 2;
-                },
+                }
                 'k' => {
                     debug_assert_eq!(p.state.castle.inner() & 4, 0);
                     p.state.castle.0 |= 4;
-                },
+                }
                 'q' => {
                     debug_assert_eq!(p.state.castle.inner() & 8, 0);
                     p.state.castle.0 |= 8;
-                },
+                }
                 _ => return Err("Unknown castling character"),
             }
         }

@@ -16,8 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use std::fmt;
 use crate::color::Color;
+use std::fmt;
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Piece(u8);
@@ -54,7 +54,7 @@ impl Piece {
         match self.0 & 0b1000 {
             0b1000 => Color::Black,
             0 => Color::White,
-            _ => panic!()
+            _ => panic!(),
         }
     }
     #[inline]
@@ -73,7 +73,7 @@ impl TryFrom<char> for PType {
             'r' => Self::Rook,
             'q' => Self::Queen,
             'k' => Self::King,
-            _ => return Err(())
+            _ => return Err(()),
         })
     }
 }
@@ -97,7 +97,9 @@ impl From<PType> for char {
 }
 impl From<Piece> for char {
     fn from(p: Piece) -> Self {
-        if !p.is_ok() { return ' '; }
+        if !p.is_ok() {
+            return ' ';
+        }
         let ty = char::from(p.kind());
         if p.color() == Color::White {
             ty.to_ascii_uppercase()
