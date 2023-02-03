@@ -89,6 +89,24 @@ impl TryFrom<char> for Piece {
     }
 }
 
+impl From<PType> for char {
+    fn from(ty: PType) -> Self {
+        let i = ty as usize;
+        b"pnbrqk"[i] as Self
+    }
+}
+impl From<Piece> for char {
+    fn from(p: Piece) -> Self {
+        if !p.is_ok() { return ' '; }
+        let ty = char::from(p.kind());
+        if p.color() == Color::White {
+            ty.to_ascii_uppercase()
+        } else {
+            ty
+        }
+    }
+}
+
 impl fmt::Display for PType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", b"pnbrqk"[*self as usize] as char)

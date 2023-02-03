@@ -29,6 +29,9 @@ static mut PAWN_ATTACKS: [[Bitboard; 2]; 64] = Bitboard::arr_2d::<2, 64>();
 static mut BETWEEN_SQUARES: [[Bitboard; 64]; 64] = Bitboard::arr_2d::<64, 64>();
 
 pub fn init() {
+    if unsafe { PAWN_ATTACKS[0][0] } != Bitboard::ZERO {
+        panic!("Do not call init::comp_init() many times");
+    }
     init_pawn_attacks();
     init_knight_attacks();
     init_king_attacks();

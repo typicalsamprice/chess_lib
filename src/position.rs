@@ -19,6 +19,7 @@
 use std::fmt;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::num::NonZeroUsize;
 
 use crate::prelude::*;
 use Color::*;
@@ -34,7 +35,7 @@ pub struct Position {
     state: State,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct State {
     check_squares: [Bitboard; 6],
     castle: Castle,
@@ -44,6 +45,8 @@ pub struct State {
     checkers: Bitboard,
     blockers: [Bitboard; 2],
     pinners: [Bitboard; 2],
+
+    captured: Piece,
 
     prev: Option<Rc<State>>
 }
@@ -104,8 +107,31 @@ impl Position {
         debug_assert_eq!(p.color(), self.to_move());
         debug_assert!(!cap.is_ok() || cap.color() != self.to_move());
 
-        // TODO: Discovered check
-        (self.state().check_squares(p.kind()) & dest).nonzero()
+        let is_moving_to_check = (self.state().check_squares(p.kind()) & dest).nonzero();
+        let blocker = self.state().blockers(!self.to_move()) & m.from();
+        let is_blocker = blocker.nonzero();
+
+        if !is_blocker {
+            return is_moving_to_check;
+        }
+
+        let is_discovery = if !is_blocker {
+            false
+        } else {
+            let k = self.king(!self.to_move());
+            let mut discoverer = Square::NULL;
+            self.state().pinners(self.to_move()).map_by_square(|pinner| {
+                if discoverer.is_ok() { return; }
+                if pinner.in_line2(blocker.get_square(), k) {
+                    discoverer = pinner;
+                    return;
+                }
+            });
+
+            discoverer.in_line2(blocker.get_square(), k) || blocker.get_square().in_line2(discoverer, k)
+        };
+
+        is_discovery || is_moving_to_check
     }
 
     pub fn attacks_to(&self, square: Square) -> Bitboard {
@@ -122,6 +148,7 @@ impl Position {
     #[inline]
     fn add_piece(&mut self, square: Square, piece: Piece) {
         debug_assert!(self.is_empty_square(square));
+        debug_assert!(piece.is_ok());
         self.board[square.inner() as usize] = piece;
         self.colors[piece.color() as usize] |= square;
         self.pieces[piece.kind() as usize] |= square;
@@ -131,13 +158,181 @@ impl Position {
         let p = self.board[square.inner() as usize];
 
 
-        if p != Piece::NULL {
+        if p.is_ok() {
             self.board[square.inner() as usize] = Piece::NULL;
             self.colors[p.color() as usize] ^= square;
             self.pieces[p.kind() as usize] ^= square;
         }
 
         p
+    }
+
+    pub fn is_pseudo_legal(&self, mv: Move) -> bool {
+        todo!();
+    }
+    pub fn is_legal(&self, mv: Move) -> bool {
+        todo!();
+    }
+
+    pub fn do_move(&mut self, mv: Move) {
+        let from = mv.from();
+        let to = mv.to();
+        let ty = mv.kind();
+        let prom = mv.promo();
+
+        let us = self.to_move();
+
+        debug_assert!(ty != MType::Promotion || (prom != PType::Pawn && prom != PType::King));
+        debug_assert!(mv.is_ok());
+
+        let moved = self.clear_square(from);
+        debug_assert_ne!(moved, Piece::NULL);
+        debug_assert_eq!(moved.color(), us);
+
+        let cap = self.clear_square(to);
+        debug_assert!(!cap.is_ok() || cap.color() == !us);
+        debug_assert!(ty != MType::EnPassant || !cap.is_ok());
+        debug_assert!(ty == MType::EnPassant || to != self.state().ep());
+        debug_assert!(ty != MType::Castle || !cap.is_ok());
+
+        let mut st = self.state.clone();
+        st.captured = cap;
+        st.rule50 += 1;
+        self.ply += 1;
+        st.ep = Square::NULL;
+
+        self.add_piece(to, moved);
+
+        if to == self.state().ep() {
+            let ep_cap_sq = Color::pawn_push(!us)(Bitboard::from(to)).get_square();
+            let c = self.clear_square(ep_cap_sq);
+            debug_assert_eq!(c, Piece::new(PType::Pawn, !us));
+            st.captured = c;
+        } else if ty == MType::Castle {
+            let rook_file = if to.file() == File::C {
+                File::A
+            } else {
+                File::H
+            };
+            let rook_dest_file = if to.file() == File::C {
+                File::D
+            } else {
+                File::F
+            };
+            let rook_square = Square::create(rook_file, from.rank());
+            let rk = self.clear_square(rook_square);
+            debug_assert_eq!(rk, Piece::new(PType::Rook, us));
+            self.add_piece(Square::create(rook_dest_file, from.rank()), rk);
+            // Remove all rights for that color
+            st.castle = Castle(st.castle.inner() &! (5 << us as u32));
+        }
+
+        // Detect killing Their rooks
+        if cap.is_ok() && cap.kind() == PType::Rook {
+            let bit: u8 = match to.relative(us).inner() {
+                56 => 2 << (2 * us as u8),
+                63 => 1 << (2 * us as u8),
+                _ => 0
+            };
+            st.castle.0 &= !bit;
+        }
+
+        if moved.kind() == PType::Pawn && from.dist(to) == 2 {
+            let possible_ep = Color::pawn_push(us)(Bitboard::from(from)).get_square();
+            if (pawn_attack(possible_ep, us) & self.spec(PType::Pawn, !us)).nonzero() {
+                st.ep = possible_ep;
+            }
+        }
+
+        if moved.kind() == PType::Pawn || cap.is_ok() {
+            st.rule50 = 0;
+        }
+
+        std::mem::swap(&mut st, &mut self.state);
+        self.state.prev = Some(Rc::new(st));
+        self.to_move = !self.to_move;
+        self.compute_state();
+    }
+    pub fn undo_move(&mut self, mv: Move) {
+        let from = mv.from();
+        let to = mv.to();
+        let ty = mv.kind();
+        let promo = mv.promo();
+        let cap = self.state.captured;
+
+        let mut st = None;
+        std::mem::swap(&mut self.state.prev, &mut st);
+        self.state = Rc::try_unwrap(st.unwrap())
+            .expect("Undo-move tried to reset to nonexistent state");
+        self.to_move = !self.to_move;
+        let us = self.to_move();
+
+        let mut moved = self.clear_square(to);
+        debug_assert_eq!(moved.color(), us);
+        if ty == MType::Promotion {
+            debug_assert_eq!(moved, Piece::new(promo, us));
+            moved = Piece::new(PType::Pawn, us);
+        }
+        self.add_piece(from, moved);
+        if cap.is_ok() {
+            let s = if ty == MType::EnPassant {
+                Color::pawn_push(!us)(Bitboard::from(to)).get_square()
+            } else {
+                to
+            };
+            self.add_piece(s, cap);
+        }
+
+        if ty == MType::Castle {
+            let (rook_on_now, rook_replace_to) = match to.file() {
+                File::G => (File::F, File::H),
+                File::C => (File::D, File::A),
+                _ => panic!("Undoing invalid castle"),
+            };
+            let br = Rank::One.relative(us);
+            let rk = self.clear_square(Square::create(rook_on_now, br));
+            debug_assert_eq!(rk, Piece::new(PType::Rook, us));
+            debug_assert!(!self.piece_on(Square::create(rook_replace_to, br)).is_ok());
+            self.add_piece(Square::create(rook_replace_to, br), rk);
+        }
+
+        self.ply -= 1;
+    }
+
+    #[allow(non_upper_case_globals)]
+    pub fn perft<const Root: bool>(&mut self, depth: usize) -> usize {
+        assert_ne!(depth, 0);
+        let mut nodes = 0;
+        let mut cnt;
+        let is_leaf = depth == 2;
+
+        let mut moves = vec![];
+        generate_legal(self, &mut moves);
+
+        for mv in moves.clone() {
+            if Root && depth == 1 {
+                cnt = 1;
+                nodes += 1;
+            } else {
+                self.do_move(mv);
+
+                cnt = if is_leaf {
+                    generate_legal(self, &mut moves);
+                    moves.len()
+                } else {
+                    self.perft::<false>(depth - 1)
+                };
+                nodes += cnt;
+
+                self.undo_move(mv);
+            }
+
+            if Root {
+                println!("{mv}: {cnt}");
+            }
+        }
+
+        nodes
     }
 
     #[inline]
@@ -186,6 +381,71 @@ impl Position {
             });
         }
     }
+
+    pub fn fen(&self) -> String {
+        let mut fen = String::with_capacity(92);
+
+        macro_rules! f {
+            () => {
+                fen.push(' ');
+            }
+        }
+
+        for i in 0..8 {
+            let mut empty = 0;
+            for j in 0..8 {
+                let s = unsafe { Square::new((7 - i) * 8 + j) };
+                debug_assert!(s.is_ok());
+                let p = self.piece_on(s);
+
+                if p.is_ok() {
+                    if empty > 0 {
+                        fen.push((b'0' + empty) as char);
+                        empty = 0;
+                    }
+                    fen.push(char::from(p));
+                } else {
+                    empty += 1;
+                }
+            }
+            if empty > 0 {
+                fen.push((b'0' + empty) as char);
+            }
+            if i != 7 {
+                fen.push('/');
+            }
+        }
+
+        f!();
+        fen.push(match self.to_move {
+            Color::White => 'w',
+            _ => 'b'
+        });
+        f!();
+
+        if self.state.castle.0 == 0 {
+            fen.push('-');
+        } else {
+            let (wk, wq) = self.state.cur_castle().castle_for(Color::White);
+            let (bk, bq) = self.state.cur_castle().castle_for(Color::Black);
+
+            if wk { fen.push('K'); }
+            if wq { fen.push('Q'); }
+            if bk { fen.push('k'); }
+            if bq { fen.push('q'); }
+        }
+        f!();
+
+        if self.state.ep.is_ok() {
+            fen.push_str(&self.state.ep.to_string());
+        } else {
+            fen.push('-');
+        }
+
+        // FIXME Add the halfmove and plies to the FEN
+
+        fen
+    }
 }
 
 impl State {
@@ -219,11 +479,6 @@ impl State {
     pub const fn pinners(&self, color: Color) -> Bitboard {
         self.pinners[color as usize]
     }
-
-    #[inline]
-    pub fn consume(self) -> Rc<Self> {
-        self.prev.unwrap()
-    }
 }
 
 impl Castle {
@@ -235,7 +490,7 @@ impl Castle {
     #[inline]
     pub const fn castle_for(self, color: Color) -> (bool, bool) {
         let king = 1 << (color as u8 * 2);
-        let queen = 1 << (color as u8 * 2 + 1);
+        let queen = 2 << (color as u8 * 2);
         let c = self.inner();
         (c & king > 0, c & queen > 0)
     }

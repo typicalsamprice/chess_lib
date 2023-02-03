@@ -30,10 +30,11 @@ mod square;
 
 pub mod prelude {
     pub use crate::bitboard::*;
-    pub use crate::color::*;
+    pub use crate::color::Color;
     pub use crate::filerank::*;
     pub use crate::init::{between, init as init_comp, king_attack, knight_attack, pawn_attack};
-    pub use crate::magic::{bishop_moves, initalize_magics, rook_moves};
+    pub use crate::magic::{bishop_moves, initalize_magics, rook_moves, queen_moves};
+    pub use crate::movegen::*;
     pub use crate::piece::*;
     pub use crate::position::*;
     pub use crate::square::*;
@@ -43,27 +44,12 @@ pub mod prelude {
 // If we want to use PEXT instructions
 // Sometimes we don't even if it's available because it
 // can be slow
-#[cfg(feature = "pext")]
+#[cfg(all(feature = "pext", target_feature = "bmi2"))]
 pub const USE_PEXT: bool = true;
-#[cfg(not(feature = "pext"))]
+#[cfg(not(all(feature = "pext", target_feature = "bmi2")))]
 pub const USE_PEXT: bool = false;
 
 #[cfg(target_pointer_width = "64")]
 pub const IS_64_BIT: bool = true;
 #[cfg(not(target_pointer_width = "64"))]
 pub const IS_64_BIT: bool = false;
-
-// TODO: Test
-macro_rules! branches {
-    ($COND:expr => $RESULT:expr; $($COND2:expr => $RESULT2:expr);+) => {
-        if $COND {
-            $RESULT
-        }
-        branches!(else_if $($COND2 => $RESULT2)+);
-    };
-    (else_if $($COND:expr => $RESULT:expr); +) => {
-        $(else if $COND {
-            $RESULT
-        })+
-    }
-}

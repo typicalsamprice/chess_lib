@@ -17,12 +17,30 @@
 */
 
 use std::ops::Not;
+use crate::bitboard::Bitboard;
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Color {
     #[default]
     White,
     Black,
+}
+
+impl Color {
+    pub fn pawn_push(self) -> Box<fn(Bitboard) -> Bitboard>
+    {
+        Box::new(match self {
+            Self::White => push_n,
+            Self::Black => push_s
+        })
+    }
+}
+
+fn push_n(b: Bitboard) -> Bitboard {
+    b << 8
+}
+fn push_s(b: Bitboard) -> Bitboard {
+    b >> 8
 }
 
 impl Not for Color {

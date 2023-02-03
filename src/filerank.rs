@@ -57,7 +57,10 @@ impl Rank {
     }
 
     pub fn relative(self, color: Color) -> Self {
-        Self::from(self as u8 + (color as u8 * (7 - 2 * self as u8)))
+        match color {
+            Color::White => self,
+            Color::Black => unsafe { std::mem::transmute(7 - self as u8) },
+        }
     }
 }
 
@@ -92,6 +95,17 @@ impl TryFrom<char> for Rank {
         }
 
         Ok(Self::from(c as u8 - b'1'))
+    }
+}
+
+impl From<File> for char {
+    fn from(f: File) -> Self {
+        (b'a' + f as u8) as Self
+    }
+}
+impl From<Rank> for char {
+    fn from(r: Rank) -> Self {
+        (b'1' + r as u8) as Self
     }
 }
 

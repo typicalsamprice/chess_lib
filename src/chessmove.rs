@@ -16,6 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+use std::fmt;
+
 use crate::piece::PType;
 use crate::square::Square;
 
@@ -41,11 +43,11 @@ impl Move {
 
     #[inline]
     pub const fn from(self) -> Square {
-        unsafe { Square::new(self.0 as u8 & 7) }
+        unsafe { Square::new(self.0 as u8 & 0x3f) }
     }
     #[inline]
     pub const fn to(self) -> Square {
-        unsafe { Square::new(((self.0 as u8) >> 6) & 7) }
+        unsafe { Square::new(((self.0 >> 6) & 0x3f) as u8) }
     }
     #[inline]
     pub const fn kind(self) -> MType {
@@ -70,5 +72,11 @@ impl Move {
     #[inline]
     pub const fn add_promo(self, ty: PType) -> Self {
         Self(self.add_type(MType::Promotion).0 | ((ty as u32) << 14))
+    }
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, f:  &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", self.from(), self.to())
     }
 }

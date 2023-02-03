@@ -191,3 +191,6 @@ pub fn bishop_moves(square: Square, occ: Bitboard) -> Bitboard {
 
     unsafe { BISHOP_ATTACK_TABLE[magic.ptr + idx as usize] }
 }
+pub fn queen_moves(square: Square, occ: Bitboard) -> Bitboard {
+    rook_moves(square, occ) | bishop_moves(square, occ)
+}
