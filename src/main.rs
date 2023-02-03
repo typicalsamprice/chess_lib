@@ -1,4 +1,5 @@
 use chess_lib::prelude::*;
+use chess_lib::prelude::individual_squares::*;
 
 fn main() {
     init_comp();
@@ -9,6 +10,8 @@ fn main() {
     println!("{p}");
     println!("{}", p.fen());
 
+    // b2b3: Missing 2 moves
+    p.do_move(Move::new(B2, B3));
     let u = p.perft::<true>(3);
     println!("Nodes searched: {u}");
 }
