@@ -246,6 +246,7 @@ impl fmt::Display for Bitboard {
                 } else {
                     s.push('.');
                 }
+                s.push(' ');
             }
 
             s.push('\n');
