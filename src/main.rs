@@ -18,7 +18,7 @@ fn main() {
     let p = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -".parse::<Position>();
     let mut p = p.unwrap();
 
-    let mut i = 3;
+    let mut i = 5;
     // STARTINGPOS
     //do_moves! { p i; H2 H4 E7 E6 F2 F3 F8 B4 }
     //do_moves! { p i; D2 D3 A7 A6 E1 D2 A6 A5 }

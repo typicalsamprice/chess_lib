@@ -263,8 +263,7 @@ impl Position {
 
         let cap = self.clear_square(to);
         debug_assert!(!cap.is_ok() || cap.color() == !us);
-        debug_assert!(ty != MType::EnPassant || !cap.is_ok());
-        debug_assert!(ty == MType::EnPassant || to != self.state().ep());
+        debug_assert!(ty == MType::EnPassant || to != self.state().ep() || !cap.is_ok());
         debug_assert!(ty != MType::Castle || !cap.is_ok());
         debug_assert!(ty != MType::Castle || from == E1.relative(us));
 
@@ -274,9 +273,15 @@ impl Position {
         self.ply += 1;
         st.ep = Square::NULL;
 
-        self.add_piece(to, moved);
+        if ty != MType::Promotion {
+            self.add_piece(to, moved);
+        } else {
+            let prom = Piece::new(mv.promo(), us);
+            debug_assert!(prom.kind() != PType::Pawn && prom.kind() != PType::King);
+            self.add_piece(to, prom);
+        }
 
-        if to == self.state().ep() {
+        if ty == MType::EnPassant {
             let ep_cap_sq = Color::pawn_push(!us)(Bitboard::from(to)).get_square();
             let c = self.clear_square(ep_cap_sq);
             debug_assert_eq!(c, Piece::new(PType::Pawn, !us));
@@ -744,6 +749,7 @@ mod tests {
 
     const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     const KIWI_FEN: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -";
+    const P3_FEN: &str = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -";
 
     fn setup() {
         crate::init::init();
@@ -824,5 +830,31 @@ mod tests {
     fn kiwi_depth_6() {
         let mut p = Pos::from_str(KIWI_FEN).unwrap();
         assert_eq!(p.perft::<true>(6), 8_031_647_685);
+    }
+
+    #[test]
+    fn fen3_depth_1() {
+        let mut p = Pos::from_str(P3_FEN).unwrap();
+        assert_eq!(p.perft::<true>(1), 14);
+    }
+    #[test]
+    fn fen3_depth_2() {
+        let mut p = Pos::from_str(P3_FEN).unwrap();
+        assert_eq!(p.perft::<true>(2), 191);
+    }
+    #[test]
+    fn fen3_depth_3() {
+        let mut p = Pos::from_str(P3_FEN).unwrap();
+        assert_eq!(p.perft::<true>(3), 2812);
+    }
+    #[test]
+    fn fen3_depth_4() {
+        let mut p = Pos::from_str(P3_FEN).unwrap();
+        assert_eq!(p.perft::<true>(4), 43_238);
+    }
+    #[test]
+    fn fen3_depth_5() {
+        let mut p = Pos::from_str(P3_FEN).unwrap();
+        assert_eq!(p.perft::<true>(5), 674_624);
     }
 }

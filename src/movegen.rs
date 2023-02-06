@@ -230,15 +230,15 @@ fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
         {
             let (ksc, qsc) = pos.state().cur_castle().castle_for(us);
             if ksc {
-                let rk = H1.relative(us);
-                let ib = between::<false>(king, rk);
+                let rk = G1.relative(us);
+                let ib = between::<true>(king, rk);
                 if (pos.all() & ib).zero() {
                     list.push(Move::new(king, G1.relative(us)).add_type(MType::Castle));
                 }
             }
             if qsc {
-                let rk = A1.relative(us);
-                let ib = between::<false>(king, rk);
+                let rk = B1.relative(us);
+                let ib = between::<true>(king, rk);
                 if (pos.all() & ib).zero() {
                     list.push(Move::new(king, C1.relative(us)).add_type(MType::Castle));
                 }
