@@ -197,7 +197,7 @@ fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
     let mut target = Bitboard::ZERO;
     if gt != GenType::Evasions || !pos.state().checkers().more_than_one() {
         target = if gt == GenType::Evasions {
-            between(king, pos.state().checkers().get_square())
+            between::<true>(king, pos.state().checkers().get_square())
         } else if gt == GenType::NonEvasions {
             !pos.color(us)
         } else if gt == GenType::Captures {
@@ -231,14 +231,14 @@ fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
             let (ksc, qsc) = pos.state().cur_castle().castle_for(us);
             if ksc {
                 let rk = H1.relative(us);
-                let ib = between(king, rk);
+                let ib = between::<false>(king, rk);
                 if (pos.all() & ib).zero() {
                     list.push(Move::new(king, G1.relative(us)).add_type(MType::Castle));
                 }
             }
             if qsc {
                 let rk = A1.relative(us);
-                let ib = between(king, rk);
+                let ib = between::<false>(king, rk);
                 if (pos.all() & ib).zero() {
                     list.push(Move::new(king, C1.relative(us)).add_type(MType::Castle));
                 }

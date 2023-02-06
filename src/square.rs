@@ -20,6 +20,8 @@ use std::fmt;
 
 use crate::color::Color;
 use crate::filerank::{File, Rank};
+use crate::init::between;
+use crate::bitboard::Bitboard;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Square(u8);
@@ -65,16 +67,12 @@ impl Square {
         }
     }
 
-    // Assumes the second square is in the middle
     pub fn in_line2(self, other1: Self, other2: Self) -> bool {
-        if self.in_line(other1) && self.in_line(other2) && other1.in_line(other2) {
-            let cmp = self.partial_cmp(&other1).unwrap();
-            if other1.partial_cmp(&other2) != Some(cmp) {
-                return false;
-            }
-        }
+        let ab = between::<false>(self, other1);
+        let bc = between::<false>(other1, other2);
+        let ac = between::<false>(self, other2);
 
-        false
+        ((ab & other2) ^ (bc & self) ^ (ac & other1)).nonzero()
     }
 
     pub fn dist(self, other: Self) -> u32 {

@@ -17,11 +17,11 @@
 */
 
 use std::fmt;
-use std::num::NonZeroUsize;
 use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::prelude::*;
+use crate::prelude::individual_squares::*;
 use Color::*;
 
 #[derive(Debug)]
@@ -133,7 +133,6 @@ impl Position {
                 });
 
             discoverer.in_line2(blocker.get_square(), k)
-                || blocker.get_square().in_line2(discoverer, k)
         };
 
         is_discovery || is_moving_to_check
@@ -151,6 +150,30 @@ impl Position {
         let rook = rook_moves(square, occ) & self.piece_2t(PType::Rook, PType::Queen);
 
         pawns | knights | kings | bish | rook
+    }
+
+    fn slider_blockers(
+        &self,
+        sliders: Bitboard,
+        square: Square,
+    ) -> (Bitboard, Bitboard) {
+        let mut blockers = Bitboard::ZERO;
+        let mut pinners = Bitboard::ZERO;
+        let snipers = ((rook_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Rook, PType::Queen))
+                | (bishop_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Bishop, PType::Queen))) & sliders;
+
+        let occ = self.all() ^ snipers;
+        snipers.map_by_square(|sniper| {
+            let b = between::<false>(square, sniper) & occ;
+            if b.nonzero() && !b.more_than_one() {
+                blockers |= b;
+                if (b & self.color(self.piece_on(square).color())).nonzero() {
+                    pinners |= sniper;
+                }
+            }
+        });
+
+        (blockers, pinners)
     }
 
     #[inline]
@@ -202,7 +225,7 @@ impl Position {
             return (rook_moves(k, occ) & self.spec_2t(PType::Queen, PType::Rook, !us)).zero()
                 && (bishop_moves(k, occ) & self.spec_2t(PType::Queen, PType::Bishop, !us)).zero();
         } else if ty == MType::Castle {
-            let ib = between(k, to);
+            let ib = between::<true>(k, to);
             let mut valid = true;
             ib.map_by_square(|s| {
                 if !valid {
@@ -220,7 +243,7 @@ impl Position {
             return (self.attacks_to_occ(to, self.all() ^ from) & self.color(!us)).zero();
         }
 
-        (self.state().blockers(us) & from).zero() || (from.in_line2(to, k) || to.in_line2(from, k))
+        (self.state().blockers(us) & from).zero() || from.in_line2(to, k)
     }
 
     pub fn do_move(&mut self, mv: Move) {
@@ -243,6 +266,7 @@ impl Position {
         debug_assert!(ty != MType::EnPassant || !cap.is_ok());
         debug_assert!(ty == MType::EnPassant || to != self.state().ep());
         debug_assert!(ty != MType::Castle || !cap.is_ok());
+        debug_assert!(ty != MType::Castle || from == E1.relative(us));
 
         let mut st = self.state.clone();
         st.captured = cap;
@@ -273,14 +297,29 @@ impl Position {
             debug_assert_eq!(rk, Piece::new(PType::Rook, us));
             self.add_piece(Square::create(rook_dest_file, from.rank()), rk);
             // Remove all rights for that color
-            st.castle = Castle(st.castle.inner() & !(5 << us as u32));
+        }
+
+        if moved.kind() == PType::King {
+            st.castle = Castle(st.castle.inner() & !(3 << (2 * us as usize)));
+        }
+
+        if moved.kind() == PType::Rook {
+            match from.relative(us) {
+                A1 if st.castle.castle_for(us).1 => {
+                    st.castle.0 ^= 2 << (2 * us as usize);
+                },
+                H1 if st.castle.castle_for(us).0 => {
+                    st.castle.0 ^= 1 << (2 * us as usize);
+                },
+                _ => ()
+            }
         }
 
         // Detect killing Their rooks
         if cap.is_ok() && cap.kind() == PType::Rook {
-            let bit: u8 = match to.relative(us).inner() {
-                56 => 2 << (2 * us as u8),
-                63 => 1 << (2 * us as u8),
+            let bit: u8 = match to.relative(us) {
+                H8 => 1 << (2 * (!us) as u8),
+                A8 => 2 << (2 * (!us) as u8),
                 _ => 0,
             };
             st.castle.0 &= !bit;
@@ -398,6 +437,7 @@ impl Position {
         let us = self.to_move();
         let king = self.king(us);
         self.state.checkers = self.attacks_to(king) & self.color(!us);
+        debug_assert_eq!(self.attacks_to(self.king(!us)) & self.color(us), Bitboard::ZERO);
         self.state.pinners[0] = Bitboard::ZERO;
         self.state.pinners[1] = Bitboard::ZERO;
         self.state.blockers[0] = Bitboard::ZERO;
@@ -415,22 +455,10 @@ impl Position {
         };
 
         for col in [White, Black] {
-            let k = self.king(col);
-            let z = Bitboard::ZERO;
-            let rooks = rook_moves(k, z) & self.spec_2t(PType::Rook, PType::Queen, !col);
-            let bish = bishop_moves(k, z) & self.spec_2t(PType::Bishop, PType::Queen, !col);
-            let sliders = rooks | bish;
-            sliders.map_by_square(|sq| {
-                let b = between(k, sq) & self.all();
-                if b.popcnt() != 1 {
-                    return;
-                }
-                let p = self.piece_on(b.get_square());
-                debug_assert_ne!(p, Piece::NULL);
-                if p.color() == col {
-                    self.state.blockers[col as usize] |= b;
-                }
-            });
+            let king = self.king(col);
+            let (blockers, pinners) = self.slider_blockers(self.color(!col), king);
+            self.state.blockers[col as usize] = blockers;
+            self.state.pinners[!col as usize] = pinners;
         }
     }
 
@@ -470,7 +498,7 @@ impl Position {
 
         f!();
         fen.push(match self.to_move {
-            Color::White => 'w',
+            White => 'w',
             _ => 'b',
         });
         f!();
@@ -478,8 +506,8 @@ impl Position {
         if self.state.castle.0 == 0 {
             fen.push('-');
         } else {
-            let (wk, wq) = self.state.cur_castle().castle_for(Color::White);
-            let (bk, bq) = self.state.cur_castle().castle_for(Color::Black);
+            let (wk, wq) = self.state.cur_castle().castle_for(White);
+            let (bk, bq) = self.state.cur_castle().castle_for(Black);
 
             if wk {
                 fen.push('K');
@@ -549,8 +577,14 @@ impl Castle {
 
     #[inline]
     pub const fn castle_for(self, color: Color) -> (bool, bool) {
-        let king = 1 << (color as u8 * 2);
-        let queen = 2 << (color as u8 * 2);
+        let king = match color {
+            White => 1,
+            Black => 4,
+        };
+        let queen = match color {
+            White => 2,
+            Black => 8,
+        };
         let c = self.inner();
         (c & king > 0, c & queen > 0)
     }
@@ -696,5 +730,99 @@ impl fmt::Display for Position {
         s.push_str("   a   b   c   d   e   f   g   h\n");
 
         write!(f, "{s}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::{pawn_attack, rook_moves};
+    use crate::prelude::individual_squares::A2;
+    use crate::prelude::Color::White;
+    use crate::prelude::Bitboard;
+    use super::Position as Pos;
+    use std::str::FromStr;
+
+    const STARTPOS_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const KIWI_FEN: &str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -";
+
+    fn setup() {
+        crate::init::init();
+        crate::magic::initalize_magics();
+    }
+
+    #[test]
+    fn depth_1() {
+        setup();
+        let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
+        let u = p.perft::<true>(1);
+        assert_eq!(u, 20);
+    }
+    #[test]
+    fn depth_2() {
+        let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
+        let u = p.perft::<true>(2);
+        assert_eq!(u, 400);
+    }
+    #[test]
+    fn depth_3() {
+        let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
+        let u = p.perft::<true>(3);
+        assert_eq!(u, 8902);
+    }
+    #[test]
+    fn depth_4() {
+        let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
+        let u = p.perft::<true>(4);
+        assert_eq!(u, 197_281);
+    }
+    #[test]
+    fn depth_5() {
+        let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
+        assert_eq!(p.perft::<true>(5), 4_865_609);
+    }
+    #[test]
+    #[ignore]
+    fn depth_6() {
+        let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
+        assert_eq!(p.perft::<true>(6), 119_060_324);
+    }
+    #[test]
+    #[ignore]
+    fn depth_7() {
+        let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
+        assert_eq!(p.perft::<true>(7), 3_195_901_860);
+    }
+
+
+    #[test]
+    fn kiwi_depth_1() {
+        let mut p = Pos::from_str(KIWI_FEN).unwrap();
+        assert_eq!(p.perft::<true>(1), 48);
+    }
+    #[test]
+    fn kiwi_depth_2() {
+        let mut p = Pos::from_str(KIWI_FEN).unwrap();
+        assert_eq!(p.perft::<true>(2), 2039);
+    }
+    #[test]
+    fn kiwi_depth_3() {
+        let mut p = Pos::from_str(KIWI_FEN).unwrap();
+        assert_eq!(p.perft::<true>(3), 97_862);
+    }
+    #[test]
+    fn kiwi_depth_4() {
+        let mut p = Pos::from_str(KIWI_FEN).unwrap();
+        assert_eq!(p.perft::<true>(4), 4_085_603);
+    }
+    #[test]
+    fn kiwi_depth_5() {
+        let mut p = Pos::from_str(KIWI_FEN).unwrap();
+        assert_eq!(p.perft::<true>(5), 193_690_690);
+    }
+    #[test]
+    #[ignore]
+    fn kiwi_depth_6() {
+        let mut p = Pos::from_str(KIWI_FEN).unwrap();
+        assert_eq!(p.perft::<true>(6), 8_031_647_685);
     }
 }

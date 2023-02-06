@@ -47,8 +47,12 @@ pub fn king_attack(square: Square) -> Bitboard {
 pub fn pawn_attack(square: Square, color: Color) -> Bitboard {
     unsafe { PAWN_ATTACKS[square.inner() as usize][color as usize] }
 }
-pub fn between(s1: Square, s2: Square) -> Bitboard {
-    unsafe { BETWEEN_SQUARES[s1.inner() as usize][s2.inner() as usize] }
+pub fn between<const INCLUDE_ENDPOINT: bool>(s1: Square, s2: Square) -> Bitboard {
+    if INCLUDE_ENDPOINT {
+        unsafe { BETWEEN_SQUARES[s1.inner() as usize][s2.inner() as usize] | s2 }
+    } else {
+        unsafe { BETWEEN_SQUARES[s1.inner() as usize][s2.inner() as usize] }
+    }
 }
 
 fn init_pawn_attacks() {
