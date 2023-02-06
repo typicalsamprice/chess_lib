@@ -63,6 +63,23 @@ impl Piece {
     }
 }
 
+impl PType {
+    pub fn is_slider(self) -> bool {
+        self >= Self::Bishop && self <= Self::Queen
+    }
+
+    pub const fn valuef(self) -> f64 {
+        match self {
+            Self::Pawn => 1.0,
+            Self::Knight => 3.0,
+            Self::Bishop => 3.0,
+            Self::Rook => 5.0,
+            Self::Queen => 9.0,
+            Self::King => 0.0
+        }
+    }
+}
+
 impl TryFrom<char> for PType {
     type Error = ();
     fn try_from(c: char) -> Result<Self, ()> {

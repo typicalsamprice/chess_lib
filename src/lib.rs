@@ -22,6 +22,7 @@ mod filerank;
 mod init;
 mod magic;
 mod movegen;
+mod moveorder;
 mod piece;
 mod position;
 mod prng;

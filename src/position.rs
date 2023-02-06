@@ -99,6 +99,11 @@ impl Position {
         self.to_move
     }
 
+    #[inline]
+    pub const fn in_check(&self) -> bool {
+        self.state.checkers.nonzero()
+    }
+
     pub fn gives_check(&self, m: Move) -> bool {
         let p = self.piece_on(m.from());
         let dest = m.to();
@@ -436,6 +441,16 @@ impl Position {
     #[inline]
     pub fn is_empty_square(&self, square: Square) -> bool {
         self.piece_on(square).inner() == Piece::NULL.inner()
+    }
+
+    pub fn material(&self, color: Color) -> i32 {
+        let p = self.spec(PType::Pawn, color).popcnt() as i32;
+        let k = self.spec(PType::Knight, color).popcnt() as i32;
+        let b = self.spec(PType::Bishop, color).popcnt() as i32;
+        let r = self.spec(PType::Rook, color).popcnt() as i32;
+        let q = self.spec(PType::Queen, color).popcnt() as i32;
+
+        p + 3 * (k + b) + 5 * r + 9 * q
     }
 
     fn compute_state(&mut self) {
