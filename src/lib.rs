@@ -28,6 +28,7 @@ mod piece;
 mod position;
 mod prng;
 mod square;
+mod zobrist;
 
 pub mod prelude {
     pub use crate::bitboard::*;

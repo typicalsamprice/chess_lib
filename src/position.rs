@@ -20,7 +20,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::prelude::*;
+use crate::{prelude::*, zobrist::{self, Key}};
 use crate::prelude::individual_squares::*;
 use Color::*;
 
@@ -47,6 +47,9 @@ pub struct State {
     pinners: [Bitboard; 2],
 
     captured: Piece,
+
+    key: Key,
+    pawn_key: Key,
 
     prev: Option<Rc<State>>,
 }
@@ -456,6 +459,35 @@ impl Position {
     fn compute_state(&mut self) {
         let us = self.to_move();
         let king = self.king(us);
+
+        self.state.key = Key(0);
+        self.state.pawn_key = zobrist::no_pawns();
+
+        for i in 0..64 {
+            let s = unsafe { Square::new(i as u8) };
+            let p = self.board[i];
+            if !p.is_ok() { continue; }
+            self.state.key ^= zobrist::piece(p.kind(), s);
+
+            if p.kind() == PType::Pawn {
+                self.state.pawn_key ^= zobrist::piece(PType::Pawn, s);
+            }
+        }
+
+        if self.state.ep.is_ok() {
+            self.state.key ^= zobrist::ep_file(self.state.ep.file());
+        }
+
+        if self.to_move == Black {
+            self.state.key ^= zobrist::color();
+        }
+
+        for bit in [1,2,4,8] {
+            if (self.state.castle.0 & bit) > 0 {
+                self.state.key ^= zobrist::castle(bit).unwrap();
+            }
+        }
+
         self.state.checkers = self.attacks_to(king) & self.color(!us);
         debug_assert_eq!(self.attacks_to(self.king(!us)) & self.color(us), Bitboard::ZERO);
         self.state.pinners[0] = Bitboard::ZERO;
@@ -586,6 +618,16 @@ impl State {
     #[inline]
     pub const fn pinners(&self, color: Color) -> Bitboard {
         self.pinners[color as usize]
+    }
+
+    #[inline]
+    pub const fn key(&self) -> Key {
+        self.key
+    }
+
+    #[inline]
+    pub const fn pawn_key(&self) -> Key {
+        self.pawn_key
     }
 }
 

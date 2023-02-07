@@ -267,17 +267,8 @@ pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut Vec<Mov
     let pinned = pos.state().blockers(us) & pos.color(us);
     let k = pos.king(us);
 
-    let mut i = 0;
-    loop {
-        let Some(mv) = list.get(i) else {
-            break;
-        };
-        if ((pinned & mv.from()).nonzero() || mv.from() == k || mv.kind() == MType::EnPassant)
-            && !pos.is_legal(*mv)
-        {
-            list.remove(i);
-        } else {
-            i += 1;
-        }
-    }
+    list.retain(|&mv| {
+        let should_check_legality = (pinned & mv.from()).nonzero() || mv.from() == k || mv.kind() == MType::EnPassant;
+        !should_check_legality || pos.is_legal(mv)
+    });
 }

@@ -27,7 +27,7 @@ impl Prng {
         Self(val)
     }
 
-    fn sample(&mut self) -> u64 {
+    pub fn sample(&mut self) -> u64 {
         self.0 ^= self.0 >> 12;
         self.0 ^= self.0 << 25;
         self.0 ^= self.0 >> 27;

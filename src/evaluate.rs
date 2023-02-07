@@ -26,7 +26,7 @@ pub struct Value(pub i32);
 
 impl Score {
     pub const fn new(middlegame: u16, endgame: u16) -> Self {
-        Self(middlegame | ((endgame as u32) << 16))
+        Self(middlegame as u32 | ((endgame as u32) << 16))
     }
 
     pub const fn mg(self) -> u16 {
