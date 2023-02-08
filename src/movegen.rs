@@ -144,13 +144,15 @@ fn generate_pawn_moves(
                 return;
             }
 
-            let b1 = other & pawn_attack(ep, !us);
+            let mut b1 = other & pawn_attack(ep, !us);
 
             debug_assert!(b1.nonzero());
 
-            b1.map_by_square(|s| {
+            while b1.nonzero() {
+                let s = b1.get_square();
+                b1 &= Bitboard::new(b1.inner() - 1);
                 list.push(Move::new(s, ep).add_type(MType::EnPassant));
-            });
+            }
         }
     }
 }
@@ -186,7 +188,7 @@ fn gen_attacks(square: Square, pt: PType, occ: Bitboard, friendly: Bitboard) -> 
         Bishop => bishop_moves(square, occ).and_not(friendly),
         Rook => rook_moves(square, occ).and_not(friendly),
         Queen => {
-            gen_attacks(square, Rook, occ, friendly) | gen_attacks(square, Bishop, occ, friendly)
+            (bishop_moves(square, occ) | rook_moves(square, occ)).and_not(friendly)
         }
     }
 }
@@ -221,12 +223,13 @@ fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
             b &= !queen_moves(pos.king(!us), Bitboard::ZERO);
         }
 
-        b.map_by_square(|s| {
+        while b.nonzero() {
+            let s = b.get_square();
+            b &= Bitboard::new(b.inner() - 1);
             list.push(Move::new(king, s));
-        });
+        }
 
-        if (gt == GenType::Quiet || gt == GenType::NonEvasions)
-            && pos.state().cur_castle().castle_for(us) != (false, false)
+        if gt == GenType::Quiet || gt == GenType::NonEvasions
         {
             let (ksc, qsc) = pos.state().cur_castle().castle_for(us);
             if ksc {
@@ -251,7 +254,6 @@ pub fn generate_all(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType
     debug_assert_eq!(gt == GenType::Evasions, pos.state().checkers().nonzero());
     generate_for(pos, list, us, gt);
 }
-
 pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut Vec<Move>) {
     let us = pos.to_move();
     if CLEAR_PREV {
