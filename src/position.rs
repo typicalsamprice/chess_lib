@@ -782,10 +782,6 @@ impl fmt::Display for Position {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::{pawn_attack, rook_moves};
-    use crate::prelude::individual_squares::A2;
-    use crate::prelude::Color::White;
-    use crate::prelude::Bitboard;
     use super::Position as Pos;
     use std::str::FromStr;
 
