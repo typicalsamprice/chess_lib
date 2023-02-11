@@ -20,7 +20,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::{prelude::*, zobrist::{self, Key}};
+use crate::{prelude::*, zobrist::Key};
 use crate::prelude::individual_squares::*;
 use Color::*;
 
@@ -58,51 +58,51 @@ pub struct State {
 pub struct Castle(u8);
 
 impl Position {
-    #[inline]
+    #[inline(always)]
     pub const fn color(&self, color: Color) -> Bitboard {
         self.colors[color as usize]
     }
-    #[inline]
+    #[inline(always)]
     pub const fn piece(&self, ty: PType) -> Bitboard {
         self.pieces[ty as usize]
     }
-    #[inline]
+    #[inline(always)]
     pub const fn spec(&self, ty: PType, color: Color) -> Bitboard {
         self.color(color).const_and(self.piece(ty))
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn piece_2t(&self, ty1: PType, ty2: PType) -> Bitboard {
         self.piece(ty1).const_or(self.piece(ty2))
     }
-    #[inline]
+    #[inline(always)]
     pub const fn spec_2t(&self, ty1: PType, ty2: PType, color: Color) -> Bitboard {
         self.piece_2t(ty1, ty2).const_and(self.color(color))
     }
-    #[inline]
+    #[inline(always)]
     pub const fn all(&self) -> Bitboard {
         self.color(White).const_or(self.color(Black))
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn king(&self, color: Color) -> Square {
         self.spec(PType::King, color).get_square()
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn ply(&self) -> i32 {
         self.ply
     }
-    #[inline]
+    #[inline(always)]
     pub const fn state(&self) -> &State {
         &self.state
     }
-    #[inline]
+    #[inline(always)]
     pub const fn to_move(&self) -> Color {
         self.to_move
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn in_check(&self) -> bool {
         self.state.checkers.nonzero()
     }
@@ -136,7 +136,6 @@ impl Position {
                     }
                     if pinner.in_line2(blocker.get_square(), k) {
                         discoverer = pinner;
-                        return;
                     }
                 });
 
@@ -146,6 +145,7 @@ impl Position {
         is_discovery || is_moving_to_check
     }
 
+    #[inline]
     pub fn attacks_to(&self, square: Square) -> Bitboard {
         self.attacks_to_occ(square, self.all())
     }
@@ -167,19 +167,22 @@ impl Position {
     ) -> (Bitboard, Bitboard) {
         let mut blockers = Bitboard::ZERO;
         let mut pinners = Bitboard::ZERO;
-        let snipers = ((rook_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Rook, PType::Queen))
+        let mut snipers = ((rook_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Rook, PType::Queen))
                 | (bishop_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Bishop, PType::Queen))) & sliders;
 
         let occ = self.all() ^ snipers;
-        snipers.map_by_square(|sniper| {
-            let b = between::<false>(square, sniper) & occ;
+        while snipers.nonzero() {
+            let sb = snipers & -snipers;
+            let s = sb.get_square();
+            let b = between::<false>(s, square) & occ;
             if b.nonzero() && !b.more_than_one() {
                 blockers |= b;
                 if (b & self.color(self.piece_on(square).color())).nonzero() {
-                    pinners |= sniper;
+                    pinners |= sb;
                 }
             }
-        });
+            snipers ^= sb;
+        }
 
         (blockers, pinners)
     }
@@ -352,7 +355,7 @@ impl Position {
         std::mem::swap(&mut st, &mut self.state);
         self.state.prev = Some(Rc::new(st));
         self.to_move = !self.to_move;
-        self.compute_state();
+        self.set_state();
     }
     pub fn undo_move(&mut self, mv: Move) {
         let from = mv.from();
@@ -407,30 +410,34 @@ impl Position {
         let mut cnt;
         let is_leaf = depth == 2;
 
-        let mut moves = vec![];
+        let mut moves = MoveList::new();
         // Say 'false' here to skip a clear
         generate_legal::<false>(self, &mut moves);
 
-        for mv in moves.clone() {
+        // TODO Iterate properly
+        let l = moves.len();
+        for i in 0..l {
+            let m = moves.get(i);
             if Root && depth == 1 {
                 cnt = 1;
                 nodes += 1;
             } else {
-                self.do_move(mv);
+                self.do_move(m);
 
                 cnt = if is_leaf {
-                    generate_legal::<true>(self, &mut moves);
-                    moves.len()
+                    let mut ml = MoveList::new();
+                    generate_legal::<true>(self, &mut ml);
+                    ml.len()
                 } else {
                     self.perft::<false>(depth - 1)
                 };
                 nodes += cnt;
 
-                self.undo_move(mv);
+                self.undo_move(m);
             }
 
             if Root {
-                println!("{mv}: {cnt}");
+                println!("{m}: {cnt}");
             }
         }
 
@@ -456,39 +463,12 @@ impl Position {
         p + 3 * (k + b) + 5 * r + 9 * q
     }
 
-    fn compute_state(&mut self) {
+    // FIXME This is the biggest slowdown at the moment.
+    // Maybe move zobrist-stuff out?
+    fn compute_check_info(&mut self) {
         let us = self.to_move();
         let king = self.king(us);
 
-        self.state.key = Key(0);
-        self.state.pawn_key = zobrist::no_pawns();
-
-        for i in 0..64 {
-            let s = unsafe { Square::new(i as u8) };
-            let p = self.board[i];
-            if !p.is_ok() { continue; }
-            self.state.key ^= zobrist::piece(p.kind(), s);
-
-            if p.kind() == PType::Pawn {
-                self.state.pawn_key ^= zobrist::piece(PType::Pawn, s);
-            }
-        }
-
-        if self.state.ep.is_ok() {
-            self.state.key ^= zobrist::ep_file(self.state.ep.file());
-        }
-
-        if self.to_move == Black {
-            self.state.key ^= zobrist::color();
-        }
-
-        for bit in [1,2,4,8] {
-            if (self.state.castle.0 & bit) > 0 {
-                self.state.key ^= zobrist::castle(bit).unwrap();
-            }
-        }
-
-        self.state.checkers = self.attacks_to(king) & self.color(!us);
         debug_assert_eq!(self.attacks_to(self.king(!us)) & self.color(us), Bitboard::ZERO);
         self.state.pinners[0] = Bitboard::ZERO;
         self.state.pinners[1] = Bitboard::ZERO;
@@ -512,6 +492,11 @@ impl Position {
             self.state.blockers[col as usize] = blockers;
             self.state.pinners[!col as usize] = pinners;
         }
+    }
+
+    fn set_state(&mut self) {
+        self.state.checkers = self.attacks_to(self.king(self.to_move())) & self.color(!self.to_move());
+        self.compute_check_info();
     }
 
     pub fn fen(&self) -> String {
@@ -760,7 +745,7 @@ impl FromStr for Position {
             return Err("No EP specifier");
         }
 
-        p.compute_state();
+        p.set_state();
         Ok(p)
     }
 }

@@ -23,7 +23,7 @@ use crate::filerank::{File, Rank};
 use crate::init::{between, king_attack, knight_attack, pawn_attack};
 use crate::magic::{bishop_moves, queen_moves, rook_moves};
 use crate::piece::PType::{self, *};
-use crate::position::{Castle, Position, State};
+use crate::position::Position;
 use crate::square::{individual_squares::*, Square};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -35,9 +35,52 @@ pub enum GenType {
     QuietChecks,
 }
 
+#[derive(Debug, Clone)]
+pub struct MoveList {
+    moves: [Move; 256],
+    index: usize
+}
+
+impl MoveList {
+    #[inline]
+    pub const fn new() -> Self {
+        Self {
+            moves: [Move::NULL; 256],
+            index: 0
+        }
+    }
+
+    pub fn push(&mut self, m: Move) {
+        if self.index < 256 {
+            self.moves[self.index] = m;
+            self.index += 1;
+        }
+    }
+
+    #[inline]
+    pub const fn get(&self, idx: usize) -> Move {
+        self.moves[idx]
+    }
+
+    #[inline]
+    pub const fn len(&self) -> usize {
+        self.index
+    }
+
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.index == 0
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        self.index = 0;
+    }
+}
+
 fn generate_pawn_moves(
     pos: &Position,
-    list: &mut Vec<Move>,
+    list: &mut MoveList,
     us: Color,
     gt: GenType,
     target: Bitboard,
@@ -159,25 +202,26 @@ fn generate_pawn_moves(
 
 fn generate_piece_moves(
     pos: &Position,
-    list: &mut Vec<Move>,
+    list: &mut MoveList,
     us: Color,
-    gt: GenType,
     target: Bitboard,
     checks: bool,
 ) {
     for pt in [Knight, Bishop, Rook, Queen] {
-        let pcs = pos.spec(pt, us);
-        pcs.map_by_square(|s| {
+        let mut pcs = pos.spec(pt, us);
+        while pcs.nonzero() {
+            let s = pcs.pop_square();
             let mut b = gen_attacks(s, pt, pos.all(), pos.color(us)) & target;
 
             if checks && (pt == Queen || (pos.state().blockers(!us) & s).zero()) {
                 b &= pos.state().check_squares(pt);
             }
 
-            b.map_by_square(|d| {
+            while b.nonzero() {
+                let d = b.pop_square();
                 list.push(Move::new(s, d));
-            });
-        });
+            }
+        }
     }
 }
 
@@ -193,7 +237,7 @@ fn gen_attacks(square: Square, pt: PType, occ: Bitboard, friendly: Bitboard) -> 
     }
 }
 
-fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
+fn generate_for(pos: &Position, list: &mut MoveList, us: Color, gt: GenType) {
     let checks = gt == GenType::QuietChecks;
     let king = pos.king(us);
     let mut target = Bitboard::ZERO;
@@ -209,7 +253,7 @@ fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
         };
 
         generate_pawn_moves(pos, list, us, gt, target);
-        generate_piece_moves(pos, list, us, gt, target, checks);
+        generate_piece_moves(pos, list, us, target, checks);
     }
 
     if !checks || (pos.state().blockers(!us) & king).nonzero() {
@@ -250,11 +294,11 @@ fn generate_for(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
     }
 }
 
-pub fn generate_all(pos: &Position, list: &mut Vec<Move>, us: Color, gt: GenType) {
+pub fn generate_all(pos: &Position, list: &mut MoveList, us: Color, gt: GenType) {
     debug_assert_eq!(gt == GenType::Evasions, pos.state().checkers().nonzero());
     generate_for(pos, list, us, gt);
 }
-pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut Vec<Move>) {
+pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut MoveList) {
     let us = pos.to_move();
     if CLEAR_PREV {
         list.clear();
@@ -264,13 +308,25 @@ pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut Vec<Mov
     } else {
         GenType::Evasions
     };
+
+    let mut cur = list.index;
     generate_all(pos, list, us, gt);
 
     let pinned = pos.state().blockers(us) & pos.color(us);
     let k = pos.king(us);
 
-    list.retain(|&mv| {
-        let should_check_legality = (pinned & mv.from()).nonzero() || mv.from() == k || mv.kind() == MType::EnPassant;
-        !should_check_legality || pos.is_legal(mv)
-    });
+    // TODO Remove nonlegla moves
+    while cur < list.index {
+        let m = list.moves[cur];
+        if (
+            (pinned & m.from()).nonzero()
+                || m.from() == k
+                || m.kind() == MType::EnPassant
+        ) && !pos.is_legal(m) {
+            list.index -= 1;
+            list.moves[cur] = list.moves[list.index];
+        } else {
+            cur += 1;
+        }
+    }
 }

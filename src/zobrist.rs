@@ -74,11 +74,11 @@ unsafe fn init_zobrist_() {
             Z_PT[i][j] = Key::rand(prng);
         }
     }
-    for i in 0..8 {
-        Z_EP_FILE[i] = Key::rand(prng);
+    for zep in &mut Z_EP_FILE {
+        *zep = Key::rand(prng);
     }
-    for i in 0..4 {
-        Z_CASTLE[i] = Key::rand(prng);
+    for zc in &mut Z_CASTLE {
+        *zc = Key::rand(prng);
     }
 }
 

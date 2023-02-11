@@ -133,12 +133,12 @@ impl fmt::Display for PType {
 }
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let c = self.kind().to_string().chars().nth(0).unwrap();
+        let c = self.kind().to_string().chars().next().unwrap();
         let ch = if self.color() == Color::White {
             c.to_ascii_uppercase()
         } else {
             c
         };
-        write!(f, "{}", ch)
+        write!(f, "{ch}")
     }
 }

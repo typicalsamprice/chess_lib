@@ -10,11 +10,21 @@ macro_rules! do_moves {
     }
 }
 
+// FIXME Position::do_move is slow
+// FIXME Position::attacks_to_occ may be slow
+// FIXME Position::compute_state and Position::generate_all are possibly slow
+
 fn main() {
     init_comp();
     initalize_magics();
+    chess_lib::zobrist::init_zobrist();
+    println!("Done with initialization");
 
+    //let f = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+    //let f = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
     let mut p = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         .parse::<Position>()
         .unwrap();
+    let u = p.perft::<true>(5);
+    println!("Nodes: {}", u);
 }

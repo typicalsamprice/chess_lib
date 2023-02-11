@@ -64,7 +64,7 @@ impl Magic {
         let lo = (occ.inner() as u32) & (self.mask as u32);
         let hi = ((occ.inner() >> 32) as u32) & ((self.mask >> 32) as u32);
 
-        (lo * (self.magic as u32) ^ (hi * ((self.magic >> 32) as u32))) >> self.shift
+        ((lo * (self.magic as u32)) ^ (hi * ((self.magic >> 32) as u32))) >> self.shift
     }
 }
 
@@ -93,7 +93,7 @@ fn init_magics<const IS_ROOK: bool>(
     magic_table: &'static mut [Magic],
 ) {
     let mut sz = 0;
-    let mut b = Bitboard::ZERO;
+    let mut b: Bitboard;
     let mut occ: [Bitboard; 4096] = [Bitboard::ZERO; 4096];
     let mut refer: [Bitboard; 4096] = [Bitboard::ZERO; 4096];
 
@@ -104,7 +104,9 @@ fn init_magics<const IS_ROOK: bool>(
         [728, 10316, 55013, 32803, 12281, 15100, 16645, 255],
     ];
 
-    Bitboard::MAX.map_by_square(|s| {
+    let mut _b = Bitboard::MAX;
+    while _b.nonzero() {
+        let s = _b.pop_square();
         let ptr = if s.inner() == 0 {
             0
         } else {
@@ -169,7 +171,7 @@ fn init_magics<const IS_ROOK: bool>(
                 i += 1;
             }
         }
-    });
+    }
 }
 
 pub fn initalize_magics() {

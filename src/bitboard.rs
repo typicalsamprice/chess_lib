@@ -32,30 +32,30 @@ impl Bitboard {
     pub const ZERO: Self = Self(0);
     pub const MAX: Self = Self(!0);
 
-    #[inline]
+    #[inline(always)]
     pub const fn new(value: u64) -> Self {
         Self(value)
     }
-    #[inline]
+    #[inline(always)]
     pub const fn inner(self) -> u64 {
         self.0
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn more_than_one(self) -> bool {
         (self.0 - 1) & self.0 > 0
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn zero(self) -> bool {
         self.0 == 0
     }
-    #[inline]
+    #[inline(always)]
     pub const fn nonzero(self) -> bool {
         !self.zero()
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn popcnt(self) -> u32 {
         self.0.count_ones()
     }
@@ -65,31 +65,23 @@ impl Bitboard {
         self & !rhs.into()
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn const_or(self, rhs: Self) -> Self {
         Self(self.inner() | rhs.inner())
     }
-    #[inline]
+    #[inline(always)]
     pub const fn const_and(self, rhs: Self) -> Self {
         Self(self.inner() & rhs.inner())
     }
-    #[inline]
+    #[inline(always)]
     pub const fn const_xor(self, rhs: Self) -> Self {
         Self(self.inner() ^ rhs.inner())
     }
 
     pub fn map_by_square<F: FnMut(Square)>(self, mut f: F) {
         let mut copy = self;
-        loop {
-            if copy.zero() {
-                return;
-            }
-            let tz = copy.0.trailing_zeros();
-            debug_assert!(tz < 64);
-            let lsb = unsafe { Square::new(tz as u8) };
-            debug_assert!(lsb.is_ok());
-            copy.0 &= copy.0 - 1;
-            f(lsb);
+        while copy.nonzero() {
+            f(copy.pop_square());
         }
     }
     pub fn map_by_board<F: FnMut(Self)>(self, mut f: F) {
@@ -105,14 +97,37 @@ impl Bitboard {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn get_square(self) -> Square {
-        if self.zero() {
-            return Square::NULL;
-        }
         unsafe { Square::new(self.0.trailing_zeros() as u8) }
     }
+    pub fn pop_square(&mut self) -> Square {
+        let s = self.get_square();
+        self.0 &= self.0 - 1;
+        s
+    }
 }
+
+pub const FILE_BB: [Bitboard; 8] = [
+    Bitboard(0x0101010101010101),
+    Bitboard(0x0101010101010101 << 1),
+    Bitboard(0x0101010101010101 << 2),
+    Bitboard(0x0101010101010101 << 3),
+    Bitboard(0x0101010101010101 << 4),
+    Bitboard(0x0101010101010101 << 5),
+    Bitboard(0x0101010101010101 << 6),
+    Bitboard(0x0101010101010101 << 7),
+];
+pub const RANK_BB: [Bitboard; 8] = [
+    Bitboard(0xFF),
+    Bitboard(0xFF << 8),
+    Bitboard(0xFF << (2 * 8)),
+    Bitboard(0xFF << (3 * 8)),
+    Bitboard(0xFF << (4 * 8)),
+    Bitboard(0xFF << (5 * 8)),
+    Bitboard(0xFF << (6 * 8)),
+    Bitboard(0xFF << (7 * 8)),
+];
 
 // Crate-visible methods
 impl Bitboard {
@@ -133,18 +148,17 @@ impl Pext for Bitboard {
 
 impl From<Square> for Bitboard {
     fn from(square: Square) -> Self {
-        debug_assert!(square.is_ok());
         Self(1 << square.inner())
     }
 }
 impl From<File> for Bitboard {
     fn from(f: File) -> Self {
-        Self(f.as_mask())
+        FILE_BB[f as usize]
     }
 }
 impl From<Rank> for Bitboard {
     fn from(r: Rank) -> Self {
-        Self(r.as_mask())
+        RANK_BB[r as usize]
     }
 }
 
