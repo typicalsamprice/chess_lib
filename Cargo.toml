@@ -9,6 +9,13 @@ readme = "README.md"
 keywords = ["chess"]
 categories = ["chess"]
 
+[profile.production]
+inherits = "release"
+lto = true
+panic = 'abort'
+codegen-units = 8
+strip = true
+
 [features]
 default = []
 
