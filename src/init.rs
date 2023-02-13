@@ -16,17 +16,17 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use std::cmp::Ordering;
-
 use crate::bitboard::Bitboard;
 use crate::color::Color;
 use crate::filerank::File;
 use crate::square::Square;
+use crate::magic::{rook_moves, bishop_moves};
 
 static mut KNIGHT_ATTACKS: [Bitboard; 64] = Bitboard::arr::<64>();
 static mut KING_ATTACKS: [Bitboard; 64] = Bitboard::arr::<64>();
 static mut PAWN_ATTACKS: [[Bitboard; 2]; 64] = Bitboard::arr_2d::<2, 64>();
 static mut BETWEEN_SQUARES: [[Bitboard; 64]; 64] = Bitboard::arr_2d::<64, 64>();
+static mut LINE_BB: [[Bitboard; 64]; 64] = Bitboard::arr_2d::<64, 64>();
 
 pub fn init() {
     if unsafe { PAWN_ATTACKS[0][0] } != Bitboard::ZERO {
@@ -35,7 +35,8 @@ pub fn init() {
     init_pawn_attacks();
     init_knight_attacks();
     init_king_attacks();
-    init_between_square_lines();
+    // Required first. Because between() uses Square::in_line in the setup
+    init_between_and_board_lines();
 }
 
 pub fn knight_attack(square: Square) -> Bitboard {
@@ -53,6 +54,9 @@ pub fn between<const INCLUDE_ENDPOINT: bool>(s1: Square, s2: Square) -> Bitboard
     } else {
         unsafe { BETWEEN_SQUARES[s1.inner() as usize][s2.inner() as usize] }
     }
+}
+pub fn line(s1: Square, s2: Square) -> Bitboard {
+    unsafe { LINE_BB[s1.inner() as usize][s2.inner() as usize] }
 }
 
 fn init_pawn_attacks() {
@@ -97,54 +101,38 @@ fn init_king_attacks() {
         }
     });
 }
-fn init_between_square_lines() {
-    Bitboard::MAX.map_by_board(|sq1b| {
-        Bitboard::MAX.map_by_board(|sq2b| {
-            let s1 = sq1b.get_square();
-            let s2 = sq2b.get_square();
+fn init_between_and_board_lines() {
+    for i in 0..64 {
+        for j in 0..64 {
+            let si = unsafe { Square::new(i as u8) };
+            let sj = unsafe { Square::new(j as u8) };
 
-            if s1 == s2
-                || !s1.in_line(s2)
-                || unsafe { BETWEEN_SQUARES[s1.inner() as usize][s2.inner() as usize].nonzero() }
-            {
-                return;
-            }
+            if si == sj { continue; }
 
-            let shift_hz = match s1.file().partial_cmp(&s2.file()) {
-                Some(Ordering::Less) => 1,
-                Some(Ordering::Greater) => -1,
-                Some(Ordering::Equal) => 0,
-                None => panic!(),
-            };
-            let shift_vt = match s1.rank().partial_cmp(&s2.rank()) {
-                Some(Ordering::Less) => 8,
-                Some(Ordering::Greater) => -8,
-                Some(Ordering::Equal) => 0,
-                None => panic!(),
+            let rook_si = rook_moves(si, Bitboard::ZERO);
+            let bish_si = bishop_moves(si, Bitboard::ZERO);
+            let b_rook_si = rook_moves(si, Bitboard::from(sj));
+            let b_bish_si = bishop_moves(si, Bitboard::from(sj));
+
+            let line = if (rook_si & sj).nonzero() {
+                rook_si & rook_moves(sj, Bitboard::ZERO)
+            } else if (bish_si & sj).nonzero() {
+                bish_si & bishop_moves(sj, Bitboard::ZERO)
+            } else {
+                Bitboard::ZERO
             };
 
-            let total_shift: i32 = shift_hz + shift_vt;
-            debug_assert_ne!(total_shift, 0);
-
-            let shift_left = total_shift > 0;
-            let mut betw = Bitboard::ZERO;
-            let mut cp = sq1b;
-            loop {
-                if shift_left {
-                    cp <<= total_shift as u32;
-                } else {
-                    cp >>= total_shift.unsigned_abs();
-                }
-
-                if (cp & sq2b).nonzero() {
-                    break;
-                }
-                betw |= cp;
-            }
-
-            unsafe {
-                BETWEEN_SQUARES[s1.inner() as usize][s2.inner() as usize] = betw;
-            }
-        });
-    });
+            let betw = if (b_rook_si & sj).nonzero() {
+                b_rook_si & rook_moves(sj, Bitboard::from(si))
+            } else if (b_bish_si & sj).nonzero() {
+                b_bish_si & bishop_moves(sj, Bitboard::from(si))
+            } else {
+                Bitboard::ZERO
+            };
+            let others = Bitboard::from(si) | sj;
+            let total = line | others;
+            unsafe { LINE_BB[i][j] = total; }
+            unsafe { BETWEEN_SQUARES[i][j] = betw; }
+        }
+    }
 }

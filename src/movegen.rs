@@ -277,15 +277,15 @@ fn generate_for(pos: &Position, list: &mut MoveList, us: Color, gt: GenType) {
         {
             let (ksc, qsc) = pos.state().cur_castle().castle_for(us);
             if ksc {
-                let rk = G1.relative(us);
-                let ib = between::<true>(king, rk);
+                let up_to_rook = G1.relative(us);
+                let ib = between::<true>(king, up_to_rook);
                 if (pos.all() & ib).zero() {
                     list.push(Move::new(king, G1.relative(us)).add_type(MType::Castle));
                 }
             }
             if qsc {
-                let rk = B1.relative(us);
-                let ib = between::<true>(king, rk);
+                let up_to_rook = B1.relative(us);
+                let ib = between::<true>(king, up_to_rook);
                 if (pos.all() & ib).zero() {
                     list.push(Move::new(king, C1.relative(us)).add_type(MType::Castle));
                 }
@@ -315,7 +315,6 @@ pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut MoveLis
     let pinned = pos.state().blockers(us) & pos.color(us);
     let k = pos.king(us);
 
-    // TODO Remove nonlegla moves
     while cur < list.index {
         let m = list.moves[cur];
         if (

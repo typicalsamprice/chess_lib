@@ -21,7 +21,7 @@ use std::fmt;
 use crate::color::Color;
 use crate::filerank::{File, Rank};
 use crate::init::between;
-use crate::bitboard::Bitboard;
+use crate::init::line;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Square(u8);
@@ -54,25 +54,12 @@ impl Square {
         unsafe { std::mem::transmute((self.0 >> 3) & 7) }
     }
 
-    pub const fn in_line(self, other: Self) -> bool {
-        if self.inner() == other.inner() {
-            return false;
-        }
-        // Uses a lot of `as u8` to make it `const`-ified
-        if (self.file() as u8 == other.file() as u8) || (self.rank() as u8 == other.rank() as u8) {
-            true
-        } else {
-            (self.file() as u8).abs_diff(other.file() as u8)
-                == (self.rank() as u8).abs_diff(other.rank() as u8)
-        }
+    pub fn in_line(self, other: Self) -> bool {
+        line(self, other).nonzero()
     }
 
     pub fn in_line2(self, other1: Self, other2: Self) -> bool {
-        let ab = between::<false>(self, other1);
-        let bc = between::<false>(other1, other2);
-        let ac = between::<false>(self, other2);
-
-        ((ab & other2) ^ (bc & self) ^ (ac & other1)).nonzero()
+        (line(self, other1) & other2).nonzero()
     }
 
     pub fn dist(self, other: Self) -> u32 {

@@ -35,7 +35,7 @@ pub mod prelude {
     pub use crate::chessmove::*;
     pub use crate::color::Color;
     pub use crate::filerank::*;
-    pub use crate::init::{between, init as init_comp, king_attack, knight_attack, pawn_attack};
+    pub use crate::init::*;
     pub use crate::magic::{bishop_moves, initalize_magics, queen_moves, rook_moves};
     pub use crate::movegen::*;
     pub use crate::piece::*;

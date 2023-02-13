@@ -86,7 +86,9 @@ impl Position {
 
     #[inline(always)]
     pub const fn king(&self, color: Color) -> Square {
-        self.spec(PType::King, color).get_square()
+        let s = self.spec(PType::King, color).get_square();
+        debug_assert!(s.is_ok());
+        s
     }
 
     #[inline(always)]
@@ -150,6 +152,7 @@ impl Position {
         self.attacks_to_occ(square, self.all())
     }
     pub fn attacks_to_occ(&self, square: Square, occ: Bitboard) -> Bitboard {
+        debug_assert!(square.is_ok());
         let pawns = (pawn_attack(square, White) & self.spec(PType::Pawn, Black))
             | (pawn_attack(square, Black) & self.spec(PType::Pawn, White));
         let knights = knight_attack(square) & self.piece(PType::Knight);
@@ -236,18 +239,18 @@ impl Position {
             return (rook_moves(k, occ) & self.spec_2t(PType::Queen, PType::Rook, !us)).zero()
                 && (bishop_moves(k, occ) & self.spec_2t(PType::Queen, PType::Bishop, !us)).zero();
         } else if ty == MType::Castle {
-            let ib = between::<true>(k, to);
-            let mut valid = true;
-            ib.map_by_square(|s| {
-                if !valid {
-                    return;
-                }
+            let mut ib = between::<true>(k, to);
+            if cap.is_ok() {
+                return false;
+            }
+            while ib.nonzero() {
+                let s = ib.pop_square();
                 if (self.attacks_to(s) & self.color(!us)).nonzero() {
-                    valid = false;
+                    return false;
                 }
-            });
+            }
 
-            return valid;
+            return true;
         }
 
         if from == k {
@@ -267,13 +270,14 @@ impl Position {
 
         debug_assert!(ty != MType::Promotion || (prom != PType::Pawn && prom != PType::King));
         debug_assert!(mv.is_ok());
+        debug_assert!(self.is_legal(mv));
 
         let moved = self.clear_square(from);
         debug_assert_ne!(moved, Piece::NULL);
         debug_assert_eq!(moved.color(), us);
 
         let cap = self.clear_square(to);
-        debug_assert!(!cap.is_ok() || cap.color() == !us);
+        debug_assert!(!cap.is_ok() || cap.color() != us);
         debug_assert!(ty == MType::EnPassant || to != self.state().ep() || !cap.is_ok());
         debug_assert!(ty != MType::Castle || !cap.is_ok());
         debug_assert!(ty != MType::Castle || from == E1.relative(us));
@@ -312,7 +316,6 @@ impl Position {
             let rk = self.clear_square(rook_square);
             debug_assert_eq!(rk, Piece::new(PType::Rook, us));
             self.add_piece(Square::create(rook_dest_file, from.rank()), rk);
-            // Remove all rights for that color
         }
 
         if moved.kind() == PType::King {
@@ -468,7 +471,9 @@ impl Position {
     fn compute_check_info(&mut self) {
         let us = self.to_move();
         let king = self.king(us);
-
+        if (self.attacks_to(self.king(!us)) & self.color(us)).nonzero() {
+            println!("{self}");
+        }
         debug_assert_eq!(self.attacks_to(self.king(!us)) & self.color(us), Bitboard::ZERO);
         self.state.pinners[0] = Bitboard::ZERO;
         self.state.pinners[1] = Bitboard::ZERO;

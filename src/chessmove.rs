@@ -73,6 +73,12 @@ impl Move {
     pub const fn add_promo(self, ty: PType) -> Self {
         Self(self.add_type(MType::Promotion).0 | ((ty as u32) << 14))
     }
+
+    #[cfg(debug_assertions)]
+    pub fn all_move_data(self) -> String {
+        format!("{}{} T: {:?} P: {:?}", self.from(), self.to(),
+                self.kind(), self.promo())
+    }
 }
 
 impl fmt::Display for Move {

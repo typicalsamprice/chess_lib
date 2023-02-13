@@ -41,7 +41,7 @@ impl Piece {
     }
     #[inline]
     pub const fn is_ok(self) -> bool {
-        self.0 != 0xF
+        self.0 < 0xF && (self.0 & 7 < 6)
     }
 
     #[inline]
@@ -51,15 +51,24 @@ impl Piece {
 
     #[inline]
     pub const fn color(self) -> Color {
-        match self.0 & 0b1000 {
-            0b1000 => Color::Black,
+        match self.0 >> 3 {
+            1 => Color::Black,
             0 => Color::White,
-            _ => panic!(),
+            _ => panic!("Invalid Piece to call color() on."),
         }
     }
     #[inline]
     pub const fn kind(self) -> PType {
-        unsafe { std::mem::transmute(self.0 & 7) }
+        match self.0 & 7 {
+            0 => PType::Pawn,
+            1 => PType::Knight,
+            2 => PType::Bishop,
+            3 => PType::Rook,
+            4 => PType::Queen,
+            5 => PType::King,
+            6 | 7 => panic!("Invalid Piece to call kind() on."),
+            _ => unreachable!()
+        }
     }
 }
 
