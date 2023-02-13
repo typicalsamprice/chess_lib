@@ -45,7 +45,7 @@ pub mod prelude {
 
 // If we want to use PEXT instructions
 // Sometimes we don't even if it's available because it
-// can be slow
+// can be slow (Zen + Zen2 architectures specifically)
 #[cfg(all(feature = "pext", target_feature = "bmi2"))]
 pub const USE_PEXT: bool = true;
 #[cfg(not(all(feature = "pext", target_feature = "bmi2")))]
