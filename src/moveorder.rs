@@ -16,10 +16,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::prelude::{Position, bishop_moves, rook_moves};
-use crate::prelude::{Move, MType::*};
-use crate::prelude::PType::*;
 use crate::prelude::Bitboard;
+use crate::prelude::PType::*;
+use crate::prelude::{bishop_moves, rook_moves, Position};
+use crate::prelude::{MType::*, Move};
 
 // A higher rating is worse because that means we are sacrificing
 fn can_be_captured_rating(pos: &Position, mv: Move) -> f64 {
@@ -38,7 +38,11 @@ fn can_be_captured_rating(pos: &Position, mv: Move) -> f64 {
 
     let att = pos.attacks_to_occ(to, pos.all() ^ from ^ to ^ possible_ep);
     let pcs = att & pos.color(!us);
-    let can_recapture = if (att & pos.color(us)).nonzero() { 1.0 } else { 0.0 };
+    let can_recapture = if (att & pos.color(us)).nonzero() {
+        1.0
+    } else {
+        0.0
+    };
 
     if pcs.zero() {
         return 0.0;
@@ -76,17 +80,17 @@ fn rate_move(pos: &Position, mv: Move) -> f64 {
     let sac_rating = can_be_captured_rating(pos, mv);
     let win_material_rating = is_capturing_rating(pos, mv);
 
-
     // Losing your castling rights if not actually castling is bad
-    let lose_castle_rights = if pos.state().cur_castle().castle_for(us) != (false, false) && mv.from() == pos.king(us) {
-        if mv.kind() == Castle {
-            1.0
+    let lose_castle_rights =
+        if pos.state().cur_castle().castle_for(us) != (false, false) && mv.from() == pos.king(us) {
+            if mv.kind() == Castle {
+                1.0
+            } else {
+                0.7
+            }
         } else {
-            0.7
-        }
-    } else {
-        1.0
-    };
+            1.0
+        };
 
     (win_material_rating * lose_castle_rights) - sac_rating
 }

@@ -18,7 +18,7 @@
 mod bitboard;
 mod chessmove;
 mod color;
-mod evaluate;
+pub mod evaluate;
 mod filerank;
 mod init;
 mod magic;

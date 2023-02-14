@@ -38,7 +38,7 @@ pub enum GenType {
 #[derive(Debug, Clone)]
 pub struct MoveList {
     moves: [Move; 256],
-    index: usize
+    index: usize,
 }
 
 impl MoveList {
@@ -46,7 +46,7 @@ impl MoveList {
     pub const fn new() -> Self {
         Self {
             moves: [Move::NULL; 256],
-            index: 0
+            index: 0,
         }
     }
 
@@ -231,9 +231,7 @@ fn gen_attacks(square: Square, pt: PType, occ: Bitboard, friendly: Bitboard) -> 
         Knight => knight_attack(square).and_not(friendly),
         Bishop => bishop_moves(square, occ).and_not(friendly),
         Rook => rook_moves(square, occ).and_not(friendly),
-        Queen => {
-            (bishop_moves(square, occ) | rook_moves(square, occ)).and_not(friendly)
-        }
+        Queen => (bishop_moves(square, occ) | rook_moves(square, occ)).and_not(friendly),
     }
 }
 
@@ -274,8 +272,7 @@ pub fn generate_for(pos: &Position, list: &mut MoveList, us: Color, gt: GenType)
             list.push(Move::new(king, s));
         }
 
-        if gt == GenType::Quiet || gt == GenType::NonEvasions
-        {
+        if gt == GenType::Quiet || gt == GenType::NonEvasions {
             let (ksc, qsc) = pos.state().cur_castle().castle_for(us);
             if ksc {
                 let up_to_rook = G1.relative(us);
@@ -313,11 +310,9 @@ pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut MoveLis
 
     while cur < list.index {
         let m = list.moves[cur];
-        if (
-            (pinned & m.from()).nonzero()
-                || m.from() == k
-                || m.kind() == MType::EnPassant
-        ) && !pos.is_legal(m) {
+        if ((pinned & m.from()).nonzero() || m.from() == k || m.kind() == MType::EnPassant)
+            && !pos.is_legal(m)
+        {
             list.index -= 1;
             list.moves[cur] = list.moves[list.index];
         } else {

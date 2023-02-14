@@ -20,8 +20,8 @@ use std::fmt;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::{prelude::*, zobrist::Key};
 use crate::prelude::individual_squares::*;
+use crate::{prelude::*, zobrist::Key};
 use Color::*;
 
 #[derive(Debug)]
@@ -163,15 +163,13 @@ impl Position {
         pawns | knights | kings | bish | rook
     }
 
-    fn slider_blockers(
-        &self,
-        sliders: Bitboard,
-        square: Square,
-    ) -> (Bitboard, Bitboard) {
+    fn slider_blockers(&self, sliders: Bitboard, square: Square) -> (Bitboard, Bitboard) {
         let mut blockers = Bitboard::ZERO;
         let mut pinners = Bitboard::ZERO;
-        let mut snipers = ((rook_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Rook, PType::Queen))
-                | (bishop_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Bishop, PType::Queen))) & sliders;
+        let mut snipers = ((rook_moves(square, Bitboard::ZERO)
+            & self.piece_2t(PType::Rook, PType::Queen))
+            | (bishop_moves(square, Bitboard::ZERO) & self.piece_2t(PType::Bishop, PType::Queen)))
+            & sliders;
 
         let occ = self.all() ^ snipers;
         while snipers.nonzero() {
@@ -326,11 +324,11 @@ impl Position {
             match from.relative(us) {
                 A1 if st.castle.castle_for(us).1 => {
                     st.castle.0 ^= 2 << (2 * us as usize);
-                },
+                }
                 H1 if st.castle.castle_for(us).0 => {
                     st.castle.0 ^= 1 << (2 * us as usize);
-                },
-                _ => ()
+                }
+                _ => (),
             }
         }
 
@@ -463,9 +461,11 @@ impl Position {
         let r = f64::from(self.spec(PType::Rook, color).popcnt());
         let q = f64::from(self.spec(PType::Queen, color).popcnt());
 
-        p * PType::Pawn.valuef() + k * PType::Knight.valuef()
+        p * PType::Pawn.valuef()
+            + k * PType::Knight.valuef()
             + b * PType::Bishop.valuef()
-            + r * PType::Rook.valuef() + q * PType::Queen.valuef()
+            + r * PType::Rook.valuef()
+            + q * PType::Queen.valuef()
     }
 
     // FIXME This is the biggest slowdown at the moment.
@@ -476,7 +476,10 @@ impl Position {
         if (self.attacks_to(self.king(!us)) & self.color(us)).nonzero() {
             println!("{self}");
         }
-        debug_assert_eq!(self.attacks_to(self.king(!us)) & self.color(us), Bitboard::ZERO);
+        debug_assert_eq!(
+            self.attacks_to(self.king(!us)) & self.color(us),
+            Bitboard::ZERO
+        );
         self.state.pinners[0] = Bitboard::ZERO;
         self.state.pinners[1] = Bitboard::ZERO;
         self.state.blockers[0] = Bitboard::ZERO;
@@ -502,7 +505,8 @@ impl Position {
     }
 
     fn set_state(&mut self) {
-        self.state.checkers = self.attacks_to(self.king(self.to_move())) & self.color(!self.to_move());
+        self.state.checkers =
+            self.attacks_to(self.king(self.to_move())) & self.color(!self.to_move());
         self.compute_check_info();
     }
 
@@ -843,7 +847,6 @@ mod tests {
         let mut p = Pos::from_str(STARTPOS_FEN).unwrap();
         assert_eq!(p.perft::<true>(7), 3_195_901_860);
     }
-
 
     #[test]
     fn kiwi_depth_1() {

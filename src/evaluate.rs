@@ -16,55 +16,71 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use crate::prelude::Move;
+use crate::prelude::{generate_for, generate_legal, MType, MoveList};
+use crate::prelude::{Color, Position};
 
-#[derive(Debug, Clone, Copy)]
-pub struct Score(pub u32);
+fn material_balance(pos: &Position) -> f64 {
+    let white_material = pos.material(Color::White);
+    let black_material = pos.material(Color::Black);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Value(pub i32);
-
-impl Score {
-    pub const fn new(middlegame: u16, endgame: u16) -> Self {
-        Self(middlegame as u32 | ((endgame as u32) << 16))
-    }
-
-    pub const fn mg(self) -> u16 {
-        self.0 as u16
-    }
-    pub const fn eg(self) -> u16 {
-        (self.0 >> 16) as u16
-    }
+    white_material - black_material
 }
 
-impl Add for Score {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self {
-        Self(self.0 + rhs.0)
-    }
-}
-impl AddAssign for Score {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
-impl Sub for Score {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self {
-        Self(self.0 - rhs.0)
-    }
-}
-impl SubAssign for Score {
-    fn sub_assign(&mut self, rhs: Self) {
-        self.0 -= rhs.0;
-    }
+pub fn static_evaluate(pos: &Position) -> f64 {
+    material_balance(pos)
 }
 
-type SA<const N: usize> = [Score; N];
-macro_rules! S {
-    ($MG:literal, $EG:literal) => { Score::new($MG, $EG) }
+pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth: usize) -> f64 {
+    if depth == 0 {
+        return pos.to_move().persp(static_evaluate(pos));
+    }
+    let mut move_list = MoveList::new();
+    let mut best_rat = f64::NEG_INFINITY;
+    generate_legal::<false>(pos, &mut move_list);
+    for i in 0..move_list.len() {
+        let m = move_list.get(i);
+        pos.do_move(m);
+        let e = -minimax::<false>(pos, best_move, depth - 1);
+        if e > best_rat {
+            best_rat = e;
+            if ROOT {
+                *best_move = m;
+            }
+        }
+        pos.undo_move(m);
+    }
+
+    best_rat
 }
 
-const NOT_KING_DEFENDER: SA<2> = [S!(9, 9), S!(7, 9)];
+pub fn alpha_beta<const ROOT: bool>(
+    pos: &mut Position,
+    best_move: &mut Move,
+    alpha: f64,
+    beta: f64,
+    depth: usize,
+) -> f64 {
+    if depth == 0 {
+        // TODO Quiescent search
+        return pos.to_move().persp(static_evaluate(pos));
+    }
+    let mut move_list = MoveList::new();
+    generate_legal::<false>(pos, &mut move_list);
+    let mut alpha = alpha;
+    for i in 0..move_list.len() {
+        let m = move_list.get(i);
+        pos.do_move(m);
+        let e = -alpha_beta::<false>(pos, best_move, -alpha, -beta, depth - 1);
+        pos.undo_move(m);
+        if e >= beta {
+            return beta;
+        }
+        if e > alpha {
+            alpha = e;
+            *best_move = m;
+        }
+    }
 
-const CLEAN_OUTPOST: Score = Score::new(0, 10);
+    alpha
+}

@@ -19,8 +19,8 @@
 use crate::bitboard::Bitboard;
 use crate::color::Color;
 use crate::filerank::File;
+use crate::magic::{bishop_moves, rook_moves};
 use crate::square::Square;
-use crate::magic::{rook_moves, bishop_moves};
 
 static mut KNIGHT_ATTACKS: [Bitboard; 64] = Bitboard::arr::<64>();
 static mut KING_ATTACKS: [Bitboard; 64] = Bitboard::arr::<64>();
@@ -107,7 +107,9 @@ fn init_between_and_board_lines() {
             let si = unsafe { Square::new(i as u8) };
             let sj = unsafe { Square::new(j as u8) };
 
-            if si == sj { continue; }
+            if si == sj {
+                continue;
+            }
 
             let rook_si = rook_moves(si, Bitboard::ZERO);
             let bish_si = bishop_moves(si, Bitboard::ZERO);
@@ -131,8 +133,12 @@ fn init_between_and_board_lines() {
             };
             let others = Bitboard::from(si) | sj;
             let total = line | others;
-            unsafe { LINE_BB[i][j] = total; }
-            unsafe { BETWEEN_SQUARES[i][j] = betw; }
+            unsafe {
+                LINE_BB[i][j] = total;
+            }
+            unsafe {
+                BETWEEN_SQUARES[i][j] = betw;
+            }
         }
     }
 }

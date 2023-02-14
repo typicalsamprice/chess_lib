@@ -76,13 +76,23 @@ impl Move {
 
     #[cfg(debug_assertions)]
     pub fn all_move_data(self) -> String {
-        format!("{}{} T: {:?} P: {:?}", self.from(), self.to(),
-                self.kind(), self.promo())
+        format!(
+            "{}{} T: {:?} P: {:?}",
+            self.from(),
+            self.to(),
+            self.kind(),
+            self.promo()
+        )
     }
 }
 
 impl fmt::Display for Move {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", self.from(), self.to())
+        let prom = if self.is_ok() && self.kind() == MType::Promotion {
+            char::from(self.promo()).to_string()
+        } else {
+            String::new()
+        };
+        write!(f, "{}{}{}", self.from(), self.to(), prom)
     }
 }

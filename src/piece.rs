@@ -67,7 +67,7 @@ impl Piece {
             4 => PType::Queen,
             5 => PType::King,
             6 | 7 => panic!("Invalid Piece to call kind() on."),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -84,7 +84,7 @@ impl PType {
             Self::Bishop => 3.0,
             Self::Rook => 5.0,
             Self::Queen => 9.0,
-            Self::King => 0.0
+            Self::King => 0.0,
         }
     }
 }

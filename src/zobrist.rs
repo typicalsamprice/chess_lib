@@ -21,8 +21,8 @@ use std::ops::{BitXor, BitXorAssign};
 use bitintr::Popcnt;
 
 use crate::prng::Prng;
-use crate::{filerank::File, piece::PType, prelude::Color};
 use crate::square::Square;
+use crate::{filerank::File, piece::PType, prelude::Color};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Key(pub u64);
@@ -40,7 +40,7 @@ impl BitXorAssign for Key {
 }
 
 type ZA<const N: usize> = [Key; N];
-type ZA2<const N:usize, const M: usize> = [ZA<N>; M];
+type ZA2<const N: usize, const M: usize> = [ZA<N>; M];
 
 static mut Z_PAWNS: ZA2<2, 64> = [[Key(0); 2]; 64];
 static mut Z_PT: ZA2<6, 64> = [[Key(0); 6]; 64];
@@ -51,8 +51,10 @@ static mut Z_NPAWNS: Key = Key(0);
 
 impl Key {
     pub const fn new(seed: u64) -> Self {
-        Self(seed.wrapping_mul(6364136223846793005)
-             .wrapping_add(1442695040888963407))
+        Self(
+            seed.wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407),
+        )
     }
     pub fn rand(prng: &mut Prng) -> Self {
         Self::new(prng.sample())
@@ -60,7 +62,9 @@ impl Key {
 }
 
 pub fn init_zobrist() {
-    unsafe { init_zobrist_(); }
+    unsafe {
+        init_zobrist_();
+    }
 }
 unsafe fn init_zobrist_() {
     let prng = &mut Prng::new(0x1af4342bd258);
@@ -98,6 +102,8 @@ pub fn pawn(color: Color, s: Square) -> Key {
     unsafe { Z_PAWNS[s.inner() as usize][color as usize] }
 }
 pub fn castle(bit: u8) -> Option<Key> {
-    if bit.popcnt() != 1 { return None; }
+    if bit.popcnt() != 1 {
+        return None;
+    }
     unsafe { Some(Z_CASTLE[bit.ilog2() as usize]) }
 }
