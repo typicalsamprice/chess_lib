@@ -42,7 +42,7 @@ pub struct MoveList {
 }
 
 impl MoveList {
-    #[inline]
+    #[inline(always)]
     pub const fn new() -> Self {
         Self {
             moves: [Move::NULL; 256],
@@ -50,29 +50,29 @@ impl MoveList {
         }
     }
 
+    #[inline(always)]
     pub fn push(&mut self, m: Move) {
-        if self.index < 256 {
-            self.moves[self.index] = m;
-            self.index += 1;
-        }
+        debug_assert!(self.index < 256);
+        self.moves[self.index] = m;
+        self.index += 1;
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn get(&self, idx: usize) -> Move {
         self.moves[idx]
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn len(&self) -> usize {
         self.index
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn is_empty(&self) -> bool {
         self.index == 0
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.index = 0;
     }
@@ -237,7 +237,8 @@ fn gen_attacks(square: Square, pt: PType, occ: Bitboard, friendly: Bitboard) -> 
     }
 }
 
-fn generate_for(pos: &Position, list: &mut MoveList, us: Color, gt: GenType) {
+pub fn generate_for(pos: &Position, list: &mut MoveList, us: Color, gt: GenType) {
+    debug_assert_eq!(gt == GenType::Evasions, pos.state().checkers().nonzero());
     let checks = gt == GenType::QuietChecks;
     let king = pos.king(us);
     let mut target = Bitboard::ZERO;
@@ -293,11 +294,6 @@ fn generate_for(pos: &Position, list: &mut MoveList, us: Color, gt: GenType) {
         }
     }
 }
-
-pub fn generate_all(pos: &Position, list: &mut MoveList, us: Color, gt: GenType) {
-    debug_assert_eq!(gt == GenType::Evasions, pos.state().checkers().nonzero());
-    generate_for(pos, list, us, gt);
-}
 pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut MoveList) {
     let us = pos.to_move();
     if CLEAR_PREV {
@@ -310,7 +306,7 @@ pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut MoveLis
     };
 
     let mut cur = list.index;
-    generate_all(pos, list, us, gt);
+    generate_for(pos, list, us, gt);
 
     let pinned = pos.state().blockers(us) & pos.color(us);
     let k = pos.king(us);

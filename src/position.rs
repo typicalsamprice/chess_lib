@@ -456,14 +456,16 @@ impl Position {
         self.piece_on(square).inner() == Piece::NULL.inner()
     }
 
-    pub fn material(&self, color: Color) -> i32 {
-        let p = self.spec(PType::Pawn, color).popcnt() as i32;
-        let k = self.spec(PType::Knight, color).popcnt() as i32;
-        let b = self.spec(PType::Bishop, color).popcnt() as i32;
-        let r = self.spec(PType::Rook, color).popcnt() as i32;
-        let q = self.spec(PType::Queen, color).popcnt() as i32;
+    pub fn material(&self, color: Color) -> f64 {
+        let p = f64::from(self.spec(PType::Pawn, color).popcnt());
+        let k = f64::from(self.spec(PType::Knight, color).popcnt());
+        let b = f64::from(self.spec(PType::Bishop, color).popcnt());
+        let r = f64::from(self.spec(PType::Rook, color).popcnt());
+        let q = f64::from(self.spec(PType::Queen, color).popcnt());
 
-        p + 3 * (k + b) + 5 * r + 9 * q
+        p * PType::Pawn.valuef() + k * PType::Knight.valuef()
+            + b * PType::Bishop.valuef()
+            + r * PType::Rook.valuef() + q * PType::Queen.valuef()
     }
 
     // FIXME This is the biggest slowdown at the moment.
