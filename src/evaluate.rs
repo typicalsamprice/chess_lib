@@ -17,10 +17,12 @@
 */
 
 use crate::diagnostics;
-use crate::prelude::{generate_for, generate_legal, MType, MoveList};
+use crate::moveorder::order_moves;
+use crate::prelude::{generate_for, generate_legal, MoveList};
 use crate::prelude::{Color, Position};
 use crate::prelude::{GenType, Move};
-use crate::moveorder::order_moves;
+
+use crate::debug;
 
 fn material_balance(pos: &Position) -> f64 {
     let white_material = pos.material(Color::White);
@@ -69,14 +71,21 @@ pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth
 
 pub fn alpha_beta(pos: &mut Position, best_move: &mut Move, depth: usize) -> f64 {
     let tm = pos.to_move();
-    alpha_beta_internal::<true>(pos, best_move, depth,
-                                tm.persp(f64::NEG_INFINITY),
-                                tm.persp(f64::INFINITY))
+    alpha_beta_internal::<true>(
+        pos,
+        best_move,
+        depth,
+        tm.persp(f64::NEG_INFINITY),
+        tm.persp(f64::INFINITY),
+    )
 }
 
 fn alpha_beta_internal<const ROOT: bool>(
-    pos: &mut Position, best_move: &mut Move, depth: usize,
-    alpha: f64, beta: f64
+    pos: &mut Position,
+    best_move: &mut Move,
+    depth: usize,
+    alpha: f64,
+    beta: f64,
 ) -> f64 {
     if ROOT {
         diagnostics::reset_beta_cutoffs();
@@ -88,7 +97,7 @@ fn alpha_beta_internal<const ROOT: bool>(
 
     if move_list.len() == 0 || depth == 0 {
         diagnostics::add_alphabeta_leaf_nodes();
-        return pos.to_move().persp(static_evaluate(pos));
+        return quiescence(pos, alpha, beta);
     }
 
     order_moves(pos, &mut move_list);
@@ -97,8 +106,7 @@ fn alpha_beta_internal<const ROOT: bool>(
     for i in 0..move_list.len() {
         let m = move_list.get(i);
         pos.do_move(m);
-        let se = -alpha_beta_internal::<false>(pos, best_move, depth - 1,
-                                              -beta, -alpha);
+        let se = -alpha_beta_internal::<false>(pos, best_move, depth - 1, -beta, -alpha);
         pos.undo_move(m);
 
         if se >= beta {
@@ -111,6 +119,49 @@ fn alpha_beta_internal<const ROOT: bool>(
             if ROOT {
                 *best_move = m;
             }
+        }
+    }
+
+    alpha
+}
+
+fn quiescence(pos: &mut Position, alpha: f64, beta: f64) -> f64 {
+    let stand_pat = pos.to_move().persp(static_evaluate(pos));
+    let mut alpha = alpha;
+
+    if stand_pat >= beta {
+        diagnostics::add_beta_cutoffs();
+        return beta;
+    }
+
+    if stand_pat > alpha {
+        alpha = stand_pat;
+    }
+
+    let mut move_list = MoveList::new();
+    let gt = if pos.state().checkers().nonzero() {
+        GenType::Evasions
+    } else {
+        GenType::Captures
+    };
+    generate_for(pos, &mut move_list, pos.to_move(), gt);
+
+    for i in 0..move_list.len() {
+        let m = move_list.get(i);
+        if !pos.is_legal(m) {
+            continue;
+        }
+        pos.do_move(m);
+        let e = -quiescence(pos, -beta, -alpha);
+        pos.undo_move(m);
+
+        if e >= beta {
+            diagnostics::add_beta_cutoffs();
+            return beta;
+        }
+
+        if e > alpha {
+            alpha = e;
         }
     }
 

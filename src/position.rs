@@ -223,7 +223,7 @@ impl Position {
         let cap = self.piece_on(to);
 
         debug_assert_eq!(moved.color(), us);
-        debug_assert_ne!(moved, Piece::NULL);
+        debug_assert!(moved.is_ok());
 
         if ty == MType::EnPassant {
             let bw = (!us).pawn_push();
@@ -288,6 +288,7 @@ impl Position {
         st.ep = Square::NULL;
 
         if ty != MType::Promotion {
+            debug_assert_eq!(mv.promo(), PType::Pawn);
             self.add_piece(to, moved);
         } else {
             let prom = Piece::new(mv.promo(), us);
@@ -366,6 +367,7 @@ impl Position {
         let promo = mv.promo();
         let cap = self.state.captured;
 
+        // Flips state.prev -> state
         let mut st = None;
         std::mem::swap(&mut self.state.prev, &mut st);
         self.state =

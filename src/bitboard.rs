@@ -19,9 +19,9 @@
 use std::fmt;
 use std::ops;
 
-use crate::prelude::{File, Rank};
-use crate::prelude::Square;
 use crate::prelude::Color;
+use crate::prelude::Square;
+use crate::prelude::{File, Rank};
 
 #[cfg(feature = "pext")]
 use bitintr::Pext;

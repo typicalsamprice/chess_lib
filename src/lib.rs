@@ -56,3 +56,6 @@ pub const USE_PEXT: bool = false;
 pub const IS_64_BIT: bool = true;
 #[cfg(not(target_pointer_width = "64"))]
 pub const IS_64_BIT: bool = false;
+
+pub const MAX_MOVES: usize = 256;
+pub const MAX_PLY: usize = 246;

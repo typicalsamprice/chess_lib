@@ -39,9 +39,12 @@ macro_rules! debug {
                   format!($STRFMT, $($FILLER,)*)
         );
     };
+    ($X:expr) => {
+        eprintln!("[{}:{}:{}] {} = {:?}", file!(), line!(), column!(), stringify!($X), $X);
+    };
     ($($X:expr),*) => {
         $(
-            eprintln!("[{}:{}:{}] = {:?}", file!(), line!(), column!(), $X);
+            debug!($X);
         )*
     };
 }
@@ -54,12 +57,6 @@ macro_rules! debug {
 }
 
 // REAL FUNCTIONS
-
-#[cfg(feature = "diagnostics")]
-#[inline(always)]
-fn debug<T: Debug>(x: T) {
-    eprintln!("[{}:{}:{}] = {x:?}", file!(), line!(), column!());
-}
 
 #[cfg(feature = "diagnostics")]
 #[inline(always)]
@@ -80,7 +77,9 @@ pub fn add_quiesce_depth() {
 #[cfg(feature = "diagnostics")]
 #[inline(always)]
 pub fn add_alphabeta_leaf_nodes() {
-    unsafe { ALPHABETA_LEAF_NODES_COUNT += 1; }
+    unsafe {
+        ALPHABETA_LEAF_NODES_COUNT += 1;
+    }
 }
 
 #[cfg(feature = "diagnostics")]
@@ -104,26 +103,28 @@ pub fn get_alphabeta_leaf_nodes() -> usize {
 #[cfg(feature = "diagnostics")]
 #[inline(always)]
 pub fn reset_quiesce_depth() {
-    unsafe { QUIESCE_DEPTH = 0; }
+    unsafe {
+        QUIESCE_DEPTH = 0;
+    }
 }
 
 #[cfg(feature = "diagnostics")]
 #[inline(always)]
 pub fn reset_beta_cutoffs() {
-    unsafe { BETA_CUTOFF_COUNT = 0; }
+    unsafe {
+        BETA_CUTOFF_COUNT = 0;
+    }
 }
 
 #[cfg(feature = "diagnostics")]
 #[inline(always)]
 pub fn reset_alphabeta_leaf_nodes() {
-    unsafe { ALPHABETA_LEAF_NODES_COUNT = 0; }
+    unsafe {
+        ALPHABETA_LEAF_NODES_COUNT = 0;
+    }
 }
 
 // FILLER DIAGNOSTICS
-
-#[cfg(not(feature = "diagnostics"))]
-#[inline(always)]
-fn debug() {}
 
 #[cfg(not(feature = "diagnostics"))]
 #[inline(always)]

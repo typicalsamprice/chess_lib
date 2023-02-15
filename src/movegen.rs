@@ -26,6 +26,8 @@ use crate::piece::PType::{self, *};
 use crate::position::Position;
 use crate::square::{individual_squares::*, Square};
 
+use crate::debug;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum GenType {
     Captures,
@@ -38,7 +40,6 @@ pub enum GenType {
 #[derive(Debug, Clone)]
 pub struct MoveList {
     moves: [Move; 256],
-    killer: Move,
     index: usize,
 }
 
@@ -47,7 +48,6 @@ impl MoveList {
     pub const fn new() -> Self {
         Self {
             moves: [Move::NULL; 256],
-            killer: Move::NULL,
             index: 0,
         }
     }
@@ -76,11 +76,6 @@ impl MoveList {
     }
 
     #[inline(always)]
-    pub const fn killer(&self) -> Move {
-        self.killer
-    }
-
-    #[inline(always)]
     pub fn clear(&mut self) {
         self.index = 0;
     }
@@ -89,15 +84,6 @@ impl MoveList {
     pub fn set(&mut self, index: usize, m: Move) {
         debug_assert!(index < self.index);
         self.moves[index] = m;
-    }
-
-    fn swap(&mut self, a: usize, b: usize) {
-        debug_assert!(a < self.len() && b < self.len());
-        let mut a_ptr = &mut self.moves[a] as *mut Move;
-        let mut b_ptr = &mut self.moves[b] as *mut Move;
-        unsafe {
-            std::ptr::swap(&mut a_ptr, &mut b_ptr);
-        }
     }
 }
 

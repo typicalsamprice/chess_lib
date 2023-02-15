@@ -46,24 +46,28 @@ impl Square {
     pub const fn relative(self, color: Color) -> Self {
         match color {
             Color::White => self,
-            Color::Black => Self(self.0 ^ 56)
+            Color::Black => Self(self.0 ^ 56),
         }
     }
 
     // Squash it into the relative file left side
-    pub fn weight_map_idx(self) -> usize {
+    pub fn weight_map_idx(self, color: Color) -> usize {
         // To make sure that we can "see" the table upside down
         // and the squares are correctly mapped
-        let flip_vert = self.0 as usize ^ 56;
+        let flip_vert_xor = match color {
+            Color::White => 0,
+            Color::Black => 56
+        };
 
-        let correct_square = if self.file() >= File::E {
-            flip_vert ^ 7
+        let flip_horiz_xor = if self.file() >= File::E {
+            7
         } else {
-            flip_vert
+            0
         };
 
         // Now this has to be convert to a 0..31 index
         // instead of the usual 0..63 index
+        let correct_square = self.0 as usize ^ flip_vert_xor ^ flip_horiz_xor;
         let f = correct_square & 7;
         let r = correct_square >> 3;
         4 * r + f
