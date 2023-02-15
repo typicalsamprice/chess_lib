@@ -33,6 +33,12 @@ macro_rules! debug {
     () => {
         eprintln!("[{}:{}:{}]", file!(), line!(), column!());
     };
+    ($STRFMT:literal, $($FILLER:expr),*) => {
+        eprintln!("[{}:{}:{}] = {}",
+                  file!(), line!(), column!(),
+                  format!($STRFMT, $($FILLER,)*)
+        );
+    };
     ($($X:expr),*) => {
         $(
             eprintln!("[{}:{}:{}] = {:?}", file!(), line!(), column!(), $X);
