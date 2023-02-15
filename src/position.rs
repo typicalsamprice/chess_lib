@@ -109,6 +109,7 @@ impl Position {
         self.state.checkers.nonzero()
     }
 
+    // FIXME sometimes throws an error when line(s, s) isn't given an okay square
     pub fn gives_check(&self, m: Move) -> bool {
         let p = self.piece_on(m.from());
         let dest = m.to();
@@ -141,7 +142,7 @@ impl Position {
                     }
                 });
 
-            discoverer.in_line2(blocker.get_square(), k)
+            discoverer.is_ok() && discoverer.in_line2(blocker.get_square(), k)
         };
 
         is_discovery || is_moving_to_check

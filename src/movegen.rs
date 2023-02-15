@@ -38,6 +38,7 @@ pub enum GenType {
 #[derive(Debug, Clone)]
 pub struct MoveList {
     moves: [Move; 256],
+    killer: Move,
     index: usize,
 }
 
@@ -46,6 +47,7 @@ impl MoveList {
     pub const fn new() -> Self {
         Self {
             moves: [Move::NULL; 256],
+            killer: Move::NULL,
             index: 0,
         }
     }
@@ -59,6 +61,7 @@ impl MoveList {
 
     #[inline(always)]
     pub const fn get(&self, idx: usize) -> Move {
+        debug_assert!(idx < self.len());
         self.moves[idx]
     }
 
@@ -73,8 +76,28 @@ impl MoveList {
     }
 
     #[inline(always)]
+    pub const fn killer(&self) -> Move {
+        self.killer
+    }
+
+    #[inline(always)]
     pub fn clear(&mut self) {
         self.index = 0;
+    }
+
+    #[inline(always)]
+    pub fn set(&mut self, index: usize, m: Move) {
+        debug_assert!(index < self.index);
+        self.moves[index] = m;
+    }
+
+    fn swap(&mut self, a: usize, b: usize) {
+        debug_assert!(a < self.len() && b < self.len());
+        let mut a_ptr = &mut self.moves[a] as *mut Move;
+        let mut b_ptr = &mut self.moves[b] as *mut Move;
+        unsafe {
+            std::ptr::swap(&mut a_ptr, &mut b_ptr);
+        }
     }
 }
 
@@ -302,13 +325,13 @@ pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut MoveLis
         GenType::Evasions
     };
 
-    let mut cur = list.index;
+    let mut cur = list.len();
     generate_for(pos, list, us, gt);
 
     let pinned = pos.state().blockers(us) & pos.color(us);
     let k = pos.king(us);
 
-    while cur < list.index {
+    while cur < list.len() {
         let m = list.moves[cur];
         if ((pinned & m.from()).nonzero() || m.from() == k || m.kind() == MType::EnPassant)
             && !pos.is_legal(m)

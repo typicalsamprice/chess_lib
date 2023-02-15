@@ -18,6 +18,7 @@
 mod bitboard;
 mod chessmove;
 mod color;
+pub mod diagnostics;
 pub mod evaluate;
 mod filerank;
 mod init;

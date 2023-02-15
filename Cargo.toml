@@ -16,10 +16,13 @@ panic = 'abort'
 codegen-units = 8
 strip = true
 
+# TODO: Override dev build with "-F diagnostics" feature present
+
 [features]
 default = []
 
 pext = []
+diagnostics = []
 
 [dependencies]
 bitintr = "0.3.0"

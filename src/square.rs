@@ -43,8 +43,30 @@ impl Square {
         self.0
     }
 
-    pub fn relative(self, color: Color) -> Self {
-        Self::create(self.file(), self.rank().relative(color))
+    pub const fn relative(self, color: Color) -> Self {
+        match color {
+            Color::White => self,
+            Color::Black => Self(self.0 ^ 56)
+        }
+    }
+
+    // Squash it into the relative file left side
+    pub fn weight_map_idx(self) -> usize {
+        // To make sure that we can "see" the table upside down
+        // and the squares are correctly mapped
+        let flip_vert = self.0 as usize ^ 56;
+
+        let correct_square = if self.file() >= File::E {
+            flip_vert ^ 7
+        } else {
+            flip_vert
+        };
+
+        // Now this has to be convert to a 0..31 index
+        // instead of the usual 0..63 index
+        let f = correct_square & 7;
+        let r = correct_square >> 3;
+        4 * r + f
     }
 
     pub const fn file(self) -> File {

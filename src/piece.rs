@@ -39,17 +39,17 @@ impl Piece {
     pub const fn new(ty: PType, color: Color) -> Self {
         Self(((color as u8) << 3) | ty as u8)
     }
-    #[inline]
+    #[inline(always)]
     pub const fn is_ok(self) -> bool {
         self.0 < 0xF && (self.0 & 7 < 6)
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn inner(self) -> u8 {
         self.0
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn color(self) -> Color {
         match self.0 >> 3 {
             1 => Color::Black,
@@ -57,7 +57,7 @@ impl Piece {
             _ => panic!("Invalid Piece to call color() on."),
         }
     }
-    #[inline]
+    #[inline(always)]
     pub const fn kind(self) -> PType {
         match self.0 & 7 {
             0 => PType::Pawn,

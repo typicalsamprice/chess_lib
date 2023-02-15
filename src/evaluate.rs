@@ -16,9 +16,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::prelude::Move;
+use crate::diagnostics;
 use crate::prelude::{generate_for, generate_legal, MType, MoveList};
 use crate::prelude::{Color, Position};
+use crate::prelude::{GenType, Move};
+use crate::moveorder::order_moves;
 
 fn material_balance(pos: &Position) -> f64 {
     let white_material = pos.material(Color::White);
@@ -28,7 +30,15 @@ fn material_balance(pos: &Position) -> f64 {
 }
 
 pub fn static_evaluate(pos: &Position) -> f64 {
-    material_balance(pos)
+    let mut move_list = MoveList::new();
+    generate_legal::<false>(pos, &mut move_list);
+    if move_list.len() > 0 {
+        material_balance(pos)
+    } else if pos.in_check() {
+        f64::NEG_INFINITY
+    } else {
+        0.0
+    }
 }
 
 pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth: usize) -> f64 {
@@ -40,6 +50,9 @@ pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth
     generate_legal::<false>(pos, &mut move_list);
     for i in 0..move_list.len() {
         let m = move_list.get(i);
+        if !pos.is_legal(m) {
+            continue;
+        }
         pos.do_move(m);
         let e = -minimax::<false>(pos, best_move, depth - 1);
         if e > best_rat {
@@ -54,31 +67,50 @@ pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth
     best_rat
 }
 
-pub fn alpha_beta<const ROOT: bool>(
-    pos: &mut Position,
-    best_move: &mut Move,
-    alpha: f64,
-    beta: f64,
-    depth: usize,
+pub fn alpha_beta(pos: &mut Position, best_move: &mut Move, depth: usize) -> f64 {
+    let tm = pos.to_move();
+    alpha_beta_internal::<true>(pos, best_move, depth,
+                                tm.persp(f64::NEG_INFINITY),
+                                tm.persp(f64::INFINITY))
+}
+
+fn alpha_beta_internal<const ROOT: bool>(
+    pos: &mut Position, best_move: &mut Move, depth: usize,
+    alpha: f64, beta: f64
 ) -> f64 {
-    if depth == 0 {
-        // TODO Quiescent search
-        return pos.to_move().persp(static_evaluate(pos));
+    if ROOT {
+        diagnostics::reset_beta_cutoffs();
+        diagnostics::reset_alphabeta_leaf_nodes();
     }
+
     let mut move_list = MoveList::new();
     generate_legal::<false>(pos, &mut move_list);
+
+    if move_list.len() == 0 || depth == 0 {
+        diagnostics::add_alphabeta_leaf_nodes();
+        return pos.to_move().persp(static_evaluate(pos));
+    }
+
+    order_moves(pos, &mut move_list);
     let mut alpha = alpha;
+
     for i in 0..move_list.len() {
         let m = move_list.get(i);
         pos.do_move(m);
-        let e = -alpha_beta::<false>(pos, best_move, -alpha, -beta, depth - 1);
+        let se = -alpha_beta_internal::<false>(pos, best_move, depth - 1,
+                                              -beta, -alpha);
         pos.undo_move(m);
-        if e >= beta {
+
+        if se >= beta {
+            diagnostics::add_beta_cutoffs();
             return beta;
         }
-        if e > alpha {
-            alpha = e;
-            *best_move = m;
+
+        if se > alpha {
+            alpha = se;
+            if ROOT {
+                *best_move = m;
+            }
         }
     }
 

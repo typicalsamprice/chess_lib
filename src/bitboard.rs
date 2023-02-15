@@ -19,8 +19,9 @@
 use std::fmt;
 use std::ops;
 
-use crate::filerank::{File, Rank};
-use crate::square::Square;
+use crate::prelude::{File, Rank};
+use crate::prelude::Square;
+use crate::prelude::Color;
 
 #[cfg(feature = "pext")]
 use bitintr::Pext;
@@ -101,10 +102,20 @@ impl Bitboard {
     pub const fn get_square(self) -> Square {
         unsafe { Square::new(self.0.trailing_zeros() as u8) }
     }
+
+    #[inline(always)]
     pub fn pop_square(&mut self) -> Square {
         let s = self.get_square();
         self.0 &= self.0 - 1;
         s
+    }
+
+    #[inline(always)]
+    pub const fn relative(self, color: Color) -> Self {
+        match color {
+            Color::White => self,
+            Color::Black => Self(self.0.swap_bytes()),
+        }
     }
 }
 
