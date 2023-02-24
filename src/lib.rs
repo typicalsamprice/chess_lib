@@ -28,7 +28,10 @@ mod moveorder;
 mod piece;
 mod position;
 mod prng;
+pub mod search;
 mod square;
+mod thread;
+mod tt;
 pub mod zobrist;
 
 pub mod prelude {
@@ -36,12 +39,21 @@ pub mod prelude {
     pub use crate::chessmove::*;
     pub use crate::color::Color;
     pub use crate::filerank::*;
-    pub use crate::init::*;
-    pub use crate::magic::{bishop_moves, initalize_magics, queen_moves, rook_moves};
+    pub use crate::init::{between, line, king_attack, pawn_attack, knight_attack};
+    pub use crate::magic::{bishop_moves, queen_moves, rook_moves};
     pub use crate::movegen::*;
     pub use crate::piece::*;
     pub use crate::position::*;
     pub use crate::square::*;
+    pub use crate::zobrist::{Key, self};
+}
+
+pub fn initialize() {
+    magic::initalize_magics();
+    init::init();
+    unsafe {
+        zobrist::init_zobrist();
+    }
 }
 
 // If we want to use PEXT instructions

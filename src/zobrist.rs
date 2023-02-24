@@ -61,12 +61,7 @@ impl Key {
     }
 }
 
-pub fn init_zobrist() {
-    unsafe {
-        init_zobrist_();
-    }
-}
-unsafe fn init_zobrist_() {
+pub(crate) unsafe fn init_zobrist() {
     let prng = &mut Prng::new(0x1af4342bd258);
     Z_COL = Key::rand(prng);
     Z_NPAWNS = Key::rand(prng);

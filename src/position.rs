@@ -17,14 +17,14 @@
 */
 
 use std::fmt;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::str::FromStr;
 
 use crate::prelude::individual_squares::*;
 use crate::{prelude::*, zobrist::Key};
 use Color::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Position {
     board: [Piece; 64],
     pieces: [Bitboard; 6],
@@ -51,13 +51,15 @@ pub struct State {
     key: Key,
     pawn_key: Key,
 
-    prev: Option<Rc<State>>,
+    prev: Option<Arc<State>>,
 }
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Castle(u8);
 
 impl Position {
+    pub const STARTPOS: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
     #[inline(always)]
     pub const fn color(&self, color: Color) -> Bitboard {
         self.colors[color as usize]
@@ -356,7 +358,7 @@ impl Position {
         }
 
         std::mem::swap(&mut st, &mut self.state);
-        self.state.prev = Some(Rc::new(st));
+        self.state.prev = Some(Arc::new(st));
         self.to_move = !self.to_move;
         self.set_state();
     }
@@ -371,7 +373,7 @@ impl Position {
         let mut st = None;
         std::mem::swap(&mut self.state.prev, &mut st);
         self.state =
-            Rc::try_unwrap(st.unwrap()).expect("Undo-move tried to reset to nonexistent state");
+            Arc::try_unwrap(st.unwrap()).expect("Undo-move tried to reset to nonexistent state");
         self.to_move = !self.to_move;
         let us = self.to_move();
 

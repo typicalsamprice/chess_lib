@@ -16,6 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+use std::thread;
+
 use crate::diagnostics;
 use crate::moveorder::order_moves;
 use crate::prelude::{generate_for, generate_legal, MoveList};
@@ -69,15 +71,60 @@ pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth
     best_rat
 }
 
-pub fn alpha_beta(pos: &mut Position, best_move: &mut Move, depth: usize) -> f64 {
-    let tm = pos.to_move();
-    alpha_beta_internal::<true>(
-        pos,
-        best_move,
-        depth,
-        tm.persp(f64::NEG_INFINITY),
-        tm.persp(f64::INFINITY),
-    )
+pub fn alpha_beta<const PARALLEL: bool>(pos: &mut Position, best_move: &mut Move, depth: usize) -> f64 {
+    if PARALLEL {
+        diagnostics::reset_alphabeta_leaf_nodes();
+        diagnostics::reset_beta_cutoffs();
+        let mut _useless = Move::NULL;
+        let mut move_list = MoveList::new();
+        generate_legal::<false>(pos, &mut move_list);
+        let mut alpha = pos.to_move().persp(f64::NEG_INFINITY);
+        let beta = pos.to_move().persp(f64::INFINITY);
+        let mut handles = vec![];
+
+        if move_list.len() == 0 {
+            return pos.to_move().persp(static_evaluate(pos));
+        }
+        else if depth == 0 {
+            panic!("alpha_beta called with parallel and depth 0");
+        }
+
+        for i in 0..move_list.len() {
+            let mut cp = pos.clone();
+            let m = move_list.get(i);
+            cp.do_move(m);
+            debug!("Starting thread #{}", i);
+
+            let h = thread::spawn(move || {
+                let e = alpha_beta_internal::<false>(&mut cp, &mut _useless,
+                                                     depth - 1, -beta, -alpha);
+                (e, m)
+            });
+            handles.push(h);
+        }
+        for h in handles {
+            let (e, m) = h.join().unwrap();
+            if e >= beta {
+                return beta;
+            }
+
+            if e > alpha {
+                alpha = e;
+                *best_move = m;
+            }
+        }
+
+        alpha
+    } else {
+        let tm = pos.to_move();
+        alpha_beta_internal::<true>(
+            pos,
+            best_move,
+            depth,
+            tm.persp(f64::NEG_INFINITY),
+            tm.persp(f64::INFINITY),
+        )
+    }
 }
 
 fn alpha_beta_internal<const ROOT: bool>(
@@ -97,6 +144,11 @@ fn alpha_beta_internal<const ROOT: bool>(
 
     if move_list.len() == 0 || depth == 0 {
         diagnostics::add_alphabeta_leaf_nodes();
+    }
+
+    if move_list.len() == 0 {
+        return pos.to_move().persp(static_evaluate(pos));
+    } else if depth == 0 {
         return quiescence(pos, alpha, beta);
     }
 
@@ -117,6 +169,7 @@ fn alpha_beta_internal<const ROOT: bool>(
         if se > alpha {
             alpha = se;
             if ROOT {
+                debug!("ROOT: {} {} {}", se, alpha, m);
                 *best_move = m;
             }
         }
@@ -125,7 +178,7 @@ fn alpha_beta_internal<const ROOT: bool>(
     alpha
 }
 
-fn quiescence(pos: &mut Position, alpha: f64, beta: f64) -> f64 {
+pub(crate) fn quiescence(pos: &mut Position, alpha: f64, beta: f64) -> f64 {
     let stand_pat = pos.to_move().persp(static_evaluate(pos));
     let mut alpha = alpha;
 

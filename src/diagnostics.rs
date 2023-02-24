@@ -34,7 +34,7 @@ macro_rules! debug {
         eprintln!("[{}:{}:{}]", file!(), line!(), column!());
     };
     ($STRFMT:literal, $($FILLER:expr),*) => {
-        eprintln!("[{}:{}:{}] = {}",
+        eprintln!("[{}:{}:{}] {}",
                   file!(), line!(), column!(),
                   format!($STRFMT, $($FILLER,)*)
         );
@@ -52,7 +52,6 @@ macro_rules! debug {
 #[cfg(not(feature = "diagnostics"))]
 #[macro_export]
 macro_rules! debug {
-    () => {};
     ($($X:expr),*) => {};
 }
 
