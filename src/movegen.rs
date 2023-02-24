@@ -99,6 +99,12 @@ impl MoveList {
             std::ptr::swap(&mut a_ptr, &mut b_ptr);
         }
     }
+
+    pub fn replace(&mut self, moves: Vec<Move>) {
+        unsafe {
+            std::ptr::copy(&moves[0] as *const _, &mut self.moves as *mut _, 256);
+        }
+    }
 }
 
 fn generate_pawn_moves(
