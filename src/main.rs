@@ -1,7 +1,6 @@
-use chess_lib::evaluate::alpha_beta;
+use std::str::FromStr;
+
 use chess_lib::prelude::*;
-use chess_lib::search;
-use chess_lib::diagnostics;
 
 use chess_lib::debug;
 
@@ -13,12 +12,6 @@ fn main() {
     chess_lib::initialize();
     debug!("Done with initialization");
 
-    let mut p = Position::STARTPOS.parse::<Position>().unwrap();
-
-    let (l, e) = search::ab_with_pv(&mut p, 6);
-    println!("Eval: {e}\n");
-    for m in l.as_slice() {
-        println!("{m}");
-    }
-    debug!(pv.len());
+    let mut p = Position::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    println!("Nodes searched: {}", p.perft::<true>(7))
 }

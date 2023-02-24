@@ -77,14 +77,14 @@ impl PType {
         self >= Self::Bishop && self <= Self::Queen
     }
 
-    pub const fn valuef(self) -> f64 {
+    pub const fn value(self) -> i32 {
         match self {
-            Self::Pawn => 1.0,
-            Self::Knight => 3.0,
-            Self::Bishop => 3.0,
-            Self::Rook => 5.0,
-            Self::Queen => 9.0,
-            Self::King => 0.0,
+            Self::Pawn => 100,
+            Self::Knight => 300,
+            Self::Bishop => 300,
+            Self::Rook => 500,
+            Self::Queen => 900,
+            Self::King => 0,
         }
     }
 }

@@ -33,8 +33,8 @@ impl Color {
             Self::Black => push_s,
         })
     }
-    pub fn persp(self, value: f64) -> f64 {
-        value * (1.0 - 2.0 * f64::from(self as i32))
+    pub fn persp(self, value: i32) -> i32 {
+        value * (1 - 2 * self as i32)
     }
 }
 

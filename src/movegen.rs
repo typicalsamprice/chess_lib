@@ -85,6 +85,20 @@ impl MoveList {
         debug_assert!(index < self.index);
         self.moves[index] = m;
     }
+    fn swap(&mut self, a: usize, b: usize) {
+        debug_assert!(a < self.len() && b < self.len());
+        let mut a_ptr = &mut self.moves[a] as *mut Move;
+        let mut b_ptr = &mut self.moves[b] as *mut Move;
+        unsafe {
+            std::ptr::swap(&mut a_ptr, &mut b_ptr);
+        }
+    }
+
+    pub fn replace(&mut self, moves: Vec<Move>) {
+        unsafe {
+            std::ptr::copy(&moves[0] as *const _, &mut self.moves as *mut _, 256);
+        }
+    }
 }
 
 fn generate_pawn_moves(
