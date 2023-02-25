@@ -49,14 +49,14 @@ impl Line {
     }
 }
 
-pub fn ab_with_pv(pos: &mut Position, depth: usize) -> (Line, f64) {
+pub fn ab_with_pv(pos: &mut Position, depth: usize) -> (Line, i32) {
     let c = pos.to_move();
     let mut l = Line::new();
-    let eval = ab_compile_lines(pos, depth, c.persp(f64::NEG_INFINITY), c.persp(f64::INFINITY), &mut l);
+    let eval = ab_compile_lines(pos, depth, c.persp(-i32::MAX), c.persp(i32::MAX), &mut l);
     (l, eval)
 }
 
-fn ab_compile_lines(pos: &mut Position, depth: usize, alpha: f64, beta: f64, pv: &mut Line) -> f64 {
+fn ab_compile_lines(pos: &mut Position, depth: usize, alpha: i32, beta: i32, pv: &mut Line) -> i32 {
     let mut move_list = MoveList::new();
     let mut line = Line::new();
     let mut alpha = alpha;
@@ -80,12 +80,11 @@ fn ab_compile_lines(pos: &mut Position, depth: usize, alpha: f64, beta: f64, pv:
             alpha = e;
             pv.len = line.len() + 1;
             pv.set(0, m);
+            let src = &line.moves[0] as *const _;
+            let dst = &mut pv.moves[1] as *mut _;
+            let count = line.len();
             unsafe {
-                let src: *const [Move; MAX_PLY] = &line.moves as *const _;
-                let dst: *mut [Move; MAX_PLY]  = &mut pv.moves as *mut _;
-                let bytes: usize = line.len() * std::mem::size_of::<Move>();
-                todo!("Pointer add without feature gate?");
-                std::ptr::copy_nonoverlapping(src, casted_dst, line.moves.len());
+                std::ptr::copy(src, dst, count);
             }
         }
     }
