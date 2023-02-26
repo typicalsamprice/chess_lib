@@ -16,14 +16,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-use crate::prelude::Color;
-use crate::prelude::Square;
-use crate::prelude::PType::{self, *};
+use crate::prelude::PType::*;
 use crate::prelude::Position;
 use crate::prelude::pawn_attack;
-use crate::prelude::{MType::*, Move, MoveList};
-use crate::prelude::PType::*;
-use crate::prelude::Piece;
+use crate::prelude::{MType::*, MoveList};
+use crate::prelude::ExtMove;
 
 const CAP_SCORE: i32 = 10;
 const CONTROL_BY_OPP_PAWN_SCORE: i32 = 350;
@@ -31,10 +28,10 @@ const CONTROL_BY_OPP_PAWN_SCORE: i32 = 350;
 
 pub fn order_moves(pos: &Position, move_list: &mut MoveList/*, tt: TransposeTable*/) {
     /* let hashm = tt.get_stored(); */
-    let mut scores = Vec::with_capacity(move_list.len());
     for i in 0..move_list.len() {
         let mut score = 0;
-        let m = move_list.get(i);
+        let ext = move_list.get_mut(i);
+        let m = ext.unwrap();
 
         debug_assert!(m.is_ok());
 
@@ -65,10 +62,8 @@ pub fn order_moves(pos: &Position, move_list: &mut MoveList/*, tt: TransposeTabl
         //     score += TT_MOVE_SCORE;
         // }
 
-        scores.push((score, m));
+        *ext = ExtMove::new(m, score);
     }
 
-    scores.sort_by(|(s1, _), (s2, _)| s1.partial_cmp(s2).unwrap());
-    let mut isolated_moves = scores.into_iter().map(|(_, m)| m).collect::<Vec<_>>();
-    move_list.replace(isolated_moves);
+    move_list.sort();
 }

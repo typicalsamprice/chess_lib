@@ -26,7 +26,7 @@ use crate::piece::PType::{self, *};
 use crate::position::Position;
 use crate::square::{individual_squares::*, Square};
 
-use crate::debug;
+use crate::{debug, MAX_MOVES};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum GenType {
@@ -37,67 +37,107 @@ pub enum GenType {
     QuietChecks,
 }
 
-#[derive(Debug, Clone)]
-pub struct MoveList {
-    moves: [Move; 256],
-    index: usize,
+#[derive(Debug, Clone, Copy)]
+pub struct ExtMove {
+    emove: Move,
+    score: i32
 }
 
-impl MoveList {
+#[derive(Debug, Clone)]
+pub struct MoveList {
+    list: [ExtMove; MAX_MOVES],
+    len: usize
+}
+
+impl ExtMove {
     #[inline(always)]
-    pub const fn new() -> Self {
+    pub const fn new(m: Move, score: i32) -> Self {
         Self {
-            moves: [Move::NULL; 256],
-            index: 0,
+            emove: m,
+            score,
         }
     }
 
-    #[inline(always)]
-    pub fn push(&mut self, m: Move) {
-        debug_assert!(self.index < 256);
-        self.moves[self.index] = m;
-        self.index += 1;
+    pub const fn unwrap(&self) -> Move {
+        self.emove
     }
+    pub const fn score(&self) -> i32 {
+        self.score
+    }
+}
 
-    #[inline(always)]
-    pub const fn get(&self, idx: usize) -> Move {
-        debug_assert!(idx < self.len());
-        self.moves[idx]
+impl PartialEq for ExtMove {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.score == rhs.score
+    }
+}
+impl Eq for ExtMove {}
+impl PartialOrd for ExtMove {
+    fn partial_cmp(&self, rhs: &Self) -> Option<std::cmp::Ordering> {
+        self.score.partial_cmp(&rhs.score)
+    }
+}
+impl Ord for ExtMove {
+    fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
+        self.score.cmp(&rhs.score)
+    }
+}
+
+impl MoveList {
+    pub const fn new() -> Self {
+        let s = Self {
+            list: [ExtMove::new(Move::NULL, 0); MAX_MOVES],
+            len: 0
+        };
+
+        s
     }
 
     #[inline(always)]
     pub const fn len(&self) -> usize {
-        self.index
+        self.len
     }
 
-    #[inline(always)]
-    pub const fn is_empty(&self) -> bool {
-        self.index == 0
+    pub fn push(&mut self, m: Move) {
+        debug_assert!(self.len + 1 < MAX_MOVES);
+        self.list[self.len] = ExtMove::new(m, 0);
+        self.len += 1;
     }
 
-    #[inline(always)]
+    #[inline]
+    pub const fn get<'a>(&'a self, idx: usize) -> &'a ExtMove {
+        debug_assert!(idx < self.len);
+        &self.list[idx]
+    }
+
+    #[inline]
+    pub fn get_mut<'a>(&'a mut self, idx: usize) -> &'a mut ExtMove {
+        debug_assert!(idx < self.len);
+        &mut self.list[idx]
+    }
+
+    pub fn sort(&mut self) {
+        let sortable_slice = &mut self.list[0..self.len];
+        sortable_slice.sort();
+    }
+
+    #[inline]
     pub fn clear(&mut self) {
-        self.index = 0;
+        self.len = 0;
     }
 
-    #[inline(always)]
-    pub fn set(&mut self, index: usize, m: Move) {
-        debug_assert!(index < self.index);
-        self.moves[index] = m;
-    }
-    fn swap(&mut self, a: usize, b: usize) {
-        debug_assert!(a < self.len() && b < self.len());
-        let mut a_ptr = &mut self.moves[a] as *mut Move;
-        let mut b_ptr = &mut self.moves[b] as *mut Move;
-        unsafe {
-            std::ptr::swap(&mut a_ptr, &mut b_ptr);
-        }
-    }
+    pub fn has(&self, m: Move) -> bool {
+        let mut i = 0;
+        while i < self.len {
+            let ext_m = self.list[i].unwrap();
+            if ext_m == m {
+                return true;
+            }
 
-    pub fn replace(&mut self, moves: Vec<Move>) {
-        unsafe {
-            std::ptr::copy(&moves.as_slice() as *const _, &mut self.moves.as_slice() as *mut _, 256);
+            i += 1;
         }
+
+        false
     }
 }
 
@@ -314,32 +354,34 @@ pub fn generate_for(pos: &Position, list: &mut MoveList, us: Color, gt: GenType)
         }
     }
 }
-pub fn generate_legal<const CLEAR_PREV: bool>(pos: &Position, list: &mut MoveList) {
+pub fn generate_legal(pos: &Position, list: &mut MoveList) {
+    list.clear();
+
     let us = pos.to_move();
-    if CLEAR_PREV {
-        list.clear();
-    }
     let gt = if pos.state().checkers().zero() {
         GenType::NonEvasions
     } else {
         GenType::Evasions
     };
 
-    let mut cur = list.len();
     generate_for(pos, list, us, gt);
 
     let pinned = pos.state().blockers(us) & pos.color(us);
     let k = pos.king(us);
 
-    while cur < list.len() {
-        let m = list.moves[cur];
+    let mut i = 0;
+    while i < list.len() {
+        let ext = list.get(i);
+        let m = ext.unwrap();
         if ((pinned & m.from()).nonzero() || m.from() == k || m.kind() == MType::EnPassant)
             && !pos.is_legal(m)
         {
-            list.index -= 1;
-            list.moves[cur] = list.moves[list.index];
+            let last = *list.get(list.len() - 1);
+            let ext = list.get_mut(i);
+            *ext = last;
+            list.len -= 1;
         } else {
-            cur += 1;
+            i += 1;
         }
     }
 }

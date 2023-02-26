@@ -24,6 +24,8 @@ use crate::prelude::individual_squares::*;
 use crate::{prelude::*, zobrist::Key};
 use Color::*;
 
+use crate::debug;
+
 #[derive(Debug, Clone)]
 pub struct Position {
     board: [Piece; 64],
@@ -418,12 +420,13 @@ impl Position {
 
         let mut moves = MoveList::new();
         // Say 'false' here to skip a clear
-        generate_legal::<false>(self, &mut moves);
+        generate_legal(self, &mut moves);
 
         // TODO Iterate properly
         let l = moves.len();
         for i in 0..l {
-            let m = moves.get(i);
+            let ext = moves.get(i);
+            let m = ext.unwrap();
             if Root && depth == 1 {
                 cnt = 1;
                 nodes += 1;
@@ -432,7 +435,7 @@ impl Position {
 
                 cnt = if is_leaf {
                     let mut ml = MoveList::new();
-                    generate_legal::<true>(self, &mut ml);
+                    generate_legal(self, &mut ml);
                     ml.len()
                 } else {
                     self.perft::<false>(depth - 1)

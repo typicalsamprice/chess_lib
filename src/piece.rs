@@ -19,6 +19,8 @@
 use crate::color::Color;
 use std::fmt;
 
+use crate::debug;
+
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Piece(u8);
 
@@ -81,7 +83,7 @@ impl PType {
         match self {
             Self::Pawn => 100,
             Self::Knight => 300,
-            Self::Bishop => 300,
+            Self::Bishop => 320,
             Self::Rook => 500,
             Self::Queen => 900,
             Self::King => 0,

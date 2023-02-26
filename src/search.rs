@@ -69,10 +69,11 @@ fn ab_compile_lines(pos: &mut Position, depth: usize, alpha: i32, beta: i32, pv:
         return evaluate::quiescence(pos, alpha, beta);
     }
 
-    generate_legal::<false>(pos, &mut move_list);
+    generate_legal(pos, &mut move_list);
     order_moves(pos, &mut move_list);
     for i in 0..move_list.len() {
-        let m = move_list.get(i);
+        let ext = move_list.get(i);
+        let m = ext.unwrap();
         pos.do_move(m);
         let e = -ab_compile_lines(pos, depth - 1, -beta, -alpha, &mut line);
         pos.undo_move(m);

@@ -39,7 +39,7 @@ fn material_balance(pos: &Position) -> i32 {
 
 pub fn static_evaluate(pos: &Position) -> i32 {
     let mut move_list = MoveList::new();
-    generate_legal::<false>(pos, &mut move_list);
+    generate_legal(pos, &mut move_list);
     if move_list.len() > 0 {
         material_balance(pos)
     } else if pos.in_check() {
@@ -55,9 +55,10 @@ pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth
     }
     let mut move_list = MoveList::new();
     let mut best_rat = i32::MIN;
-    generate_legal::<false>(pos, &mut move_list);
+    generate_legal(pos, &mut move_list);
     for i in 0..move_list.len() {
-        let m = move_list.get(i);
+        let ext = move_list.get(i);
+        let m = ext.unwrap();
         if !pos.is_legal(m) {
             continue;
         }
@@ -92,7 +93,7 @@ fn alpha_beta_internal<const ROOT: bool>(
     }
 
     let mut move_list = MoveList::new();
-    generate_legal::<false>(pos, &mut move_list);
+    generate_legal(pos, &mut move_list);
 
     if move_list.len() == 0 || depth == 0 {
         diagnostics::add_alphabeta_leaf_nodes();
@@ -108,7 +109,8 @@ fn alpha_beta_internal<const ROOT: bool>(
     let mut alpha = alpha;
 
     for i in 0..move_list.len() {
-        let m = move_list.get(i);
+        let ext = move_list.get(i);
+        let m = ext.unwrap();
         pos.do_move(m);
         let se = -alpha_beta_internal::<false>(pos, best_move, depth - 1, -beta, -alpha);
         pos.undo_move(m);
@@ -152,7 +154,8 @@ pub(crate) fn quiescence(pos: &mut Position, alpha: i32, beta: i32) -> i32 {
     generate_for(pos, &mut move_list, pos.to_move(), gt);
 
     for i in 0..move_list.len() {
-        let m = move_list.get(i);
+        let ext = move_list.get(i);
+        let m = ext.unwrap();
         if !pos.is_legal(m) {
             continue;
         }
