@@ -18,9 +18,13 @@
 
 use crate::MAX_PLY;
 use crate::diagnostics;
+use crate::evaluate::{MAX_RAT, MIN_RAT};
 use crate::prelude::*;
 use crate::evaluate;
 use crate::moveorder::order_moves;
+
+use crate::debug;
+use crate::prelude::individual_squares::*;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Line {
@@ -52,7 +56,7 @@ impl Line {
 pub fn ab_with_pv(pos: &mut Position, depth: usize) -> (Line, i32) {
     let c = pos.to_move();
     let mut l = Line::new();
-    let eval = ab_compile_lines(pos, depth, c.persp(-i32::MAX), c.persp(i32::MAX), &mut l);
+    let eval = ab_compile_lines(pos, depth, c.persp(MIN_RAT), c.persp(MAX_RAT), &mut l);
     (l, eval)
 }
 
@@ -62,10 +66,11 @@ fn ab_compile_lines(pos: &mut Position, depth: usize, alpha: i32, beta: i32, pv:
     let mut alpha = alpha;
 
     if depth == 0 {
-        return evaluate::static_evaluate(pos);
+        return evaluate::quiescence(pos, alpha, beta);
     }
 
     generate_legal::<false>(pos, &mut move_list);
+    order_moves(pos, &mut move_list);
     for i in 0..move_list.len() {
         let m = move_list.get(i);
         pos.do_move(m);

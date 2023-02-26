@@ -96,7 +96,7 @@ impl MoveList {
 
     pub fn replace(&mut self, moves: Vec<Move>) {
         unsafe {
-            std::ptr::copy(&moves[0] as *const _, &mut self.moves as *mut _, 256);
+            std::ptr::copy(&moves.as_slice() as *const _, &mut self.moves.as_slice() as *mut _, 256);
         }
     }
 }

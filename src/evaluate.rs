@@ -26,6 +26,10 @@ use crate::prelude::{GenType, Move};
 
 use crate::debug;
 
+// These contants make it easier to read.
+pub const MAX_RAT: i32 = i32::MAX;
+pub const MIN_RAT: i32 = -i32::MAX;
+
 fn material_balance(pos: &Position) -> i32 {
     let white_material = pos.material(Color::White);
     let black_material = pos.material(Color::Black);
@@ -39,7 +43,7 @@ pub fn static_evaluate(pos: &Position) -> i32 {
     if move_list.len() > 0 {
         material_balance(pos)
     } else if pos.in_check() {
-        i32::MIN
+        MIN_RAT
     } else {
         0
     }
@@ -74,8 +78,8 @@ pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth
 pub fn alpha_beta(pos: &mut Position, best_move: &mut Move, depth: usize) -> i32 {
     let tm = pos.to_move();
     alpha_beta_internal::<true>(pos, best_move, depth,
-                                tm.persp(i32::MIN),
-                                tm.persp(i32::MAX))
+                                tm.persp(MIN_RAT),
+                                tm.persp(MAX_RAT))
 }
 
 fn alpha_beta_internal<const ROOT: bool>(
@@ -140,7 +144,7 @@ pub(crate) fn quiescence(pos: &mut Position, alpha: i32, beta: i32) -> i32 {
     }
 
     let mut move_list = MoveList::new();
-    let gt = if pos.state().checkers().nonzero() {
+    let gt = if pos.in_check() {
         GenType::Evasions
     } else {
         GenType::Captures
