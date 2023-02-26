@@ -40,18 +40,20 @@ fn material_balance(pos: &Position) -> i32 {
 pub fn static_evaluate(pos: &Position) -> i32 {
     let mut move_list = MoveList::new();
     generate_legal(pos, &mut move_list);
-    if move_list.len() > 0 {
+    let r = if move_list.len() > 0 {
         material_balance(pos)
     } else if pos.in_check() {
         MIN_RAT
     } else {
         0
-    }
+    };
+
+    pos.to_move().persp(r)
 }
 
 pub fn minimax<const ROOT: bool>(pos: &mut Position, best_move: &mut Move, depth: usize) -> i32 {
     if depth == 0 {
-        return pos.to_move().persp(static_evaluate(pos));
+        return static_evaluate(pos);
     }
     let mut move_list = MoveList::new();
     let mut best_rat = i32::MIN;
@@ -100,7 +102,7 @@ fn alpha_beta_internal<const ROOT: bool>(
     }
 
     if move_list.len() == 0 {
-        return pos.to_move().persp(static_evaluate(pos));
+        return static_evaluate(pos);
     } else if depth == 0 {
         return quiescence(pos, alpha, beta);
     }
@@ -133,34 +135,35 @@ fn alpha_beta_internal<const ROOT: bool>(
 }
 
 pub(crate) fn quiescence(pos: &mut Position, alpha: i32, beta: i32) -> i32 {
-    let stand_pat = pos.to_move().persp(static_evaluate(pos));
+    diagnostics::add_quiesce_depth();
+
+    let stp = static_evaluate(pos);
     let mut alpha = alpha;
 
-    if stand_pat >= beta {
+    if stp >= beta {
         diagnostics::add_beta_cutoffs();
         return beta;
     }
 
-    if stand_pat > alpha {
-        alpha = stand_pat;
+    if stp > alpha {
+        alpha = stp;
     }
 
-    let mut move_list = MoveList::new();
+    let mut ml = MoveList::new();
     let gt = if pos.in_check() {
         GenType::Evasions
     } else {
         GenType::Captures
     };
-    generate_for(pos, &mut move_list, pos.to_move(), gt);
 
-    for i in 0..move_list.len() {
-        let ext = move_list.get(i);
+    generate_for(pos, &mut ml, pos.to_move(), gt);
+    order_moves(pos, &mut ml);
+    for i in 0..ml.len() {
+        let ext = ml.get(i);
         let m = ext.unwrap();
-        if !pos.is_legal(m) {
-            continue;
-        }
+        if !pos.is_legal(m) { continue; }
         pos.do_move(m);
-        let e = -quiescence(pos, -beta, -alpha);
+        let e = -quiescence(pos, alpha, beta);
         pos.undo_move(m);
 
         if e >= beta {

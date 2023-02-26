@@ -65,6 +65,8 @@ fn ab_compile_lines(pos: &mut Position, depth: usize, alpha: i32, beta: i32, pv:
     let mut line = Line::new();
     let mut alpha = alpha;
 
+    let f = "3R1k2/4ppp1/8/2q4b/8/8/1r6/4K3";
+
     if depth == 0 {
         return evaluate::quiescence(pos, alpha, beta);
     }
@@ -76,6 +78,7 @@ fn ab_compile_lines(pos: &mut Position, depth: usize, alpha: i32, beta: i32, pv:
         let m = ext.unwrap();
         pos.do_move(m);
         let e = -ab_compile_lines(pos, depth - 1, -beta, -alpha, &mut line);
+        if &pos.fen()[0..f.len()] == f { debug!(e, beta, alpha, pv, m.to_string()); }
         pos.undo_move(m);
 
         if e >= beta {

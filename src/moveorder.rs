@@ -52,7 +52,7 @@ pub fn order_moves(pos: &Position, move_list: &mut MoveList/*, tt: TransposeTabl
 
         if p.kind() == Pawn {
             if k == Promotion {
-                score += prom.value();
+                score += prom.value() * 2;
             }
         } else if (pawn_attack(to, us) & pos.spec(Pawn, them)).nonzero() {
             score -= CONTROL_BY_OPP_PAWN_SCORE;

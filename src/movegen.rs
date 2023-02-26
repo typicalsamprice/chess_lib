@@ -117,6 +117,7 @@ impl MoveList {
     }
 
     pub fn sort(&mut self) {
+        if self.len == 0 { return; }
         let sortable_slice = &mut self.list[0..self.len];
         sortable_slice.sort();
     }
